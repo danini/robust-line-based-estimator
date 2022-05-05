@@ -1,0 +1,9 @@
+[submodule "third_party/SOLD2"]
+	path = third_party/SOLD2
+	url = https://github.com/cvg/SOLD2
+[submodule "third_party/pytlsd"]
+	path = third_party/pytlsd
+	url = git@github.com:iago-suarez/pytlsd.git
+[submodule "third_party/pytlbd"]
+	path = third_party/pytlbd
+	url = git@github.com:iago-suarez/pytlbd.git
