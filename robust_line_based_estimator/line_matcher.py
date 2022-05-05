@@ -131,14 +131,13 @@ class Sold2Wrapper():
                 "The input image should be a 2D numpy array")
 
         # Pre-process the image
-        resize = False
+        scale_factor = 1
         if max(image.shape) > self.max_size:
             # Resize the image
-            resize = True
             orig_shape = image.shape
-            s = self.max_size / max(image.shape)
+            scale_factor = self.max_size / max(image.shape)
             new_size = tuple(np.round(np.array(image.shape)
-                                      * s).astype(int)[[1, 0]])
+                                      * scale_factor).astype(int)[[1, 0]])
             image = cv2.resize(image, new_size, interpolation=cv2.INTER_AREA)
         torch_img = torch.as_tensor(image, dtype=torch.float,
                                     device=self.device) / 255.
@@ -148,7 +147,8 @@ class Sold2Wrapper():
         with torch.no_grad():
             net_outputs = self.model(torch_img)
 
-        outputs = {"descriptor": net_outputs["descriptors"][0]}
+        outputs = {"descriptor": net_outputs["descriptors"][0],
+                   "scale_factor": scale_factor}
 
         if not desc_only:
             junc_np = convert_junc_predictions(
@@ -173,17 +173,12 @@ class Sold2Wrapper():
 
             # Convert to line segments
             line_segments = line_map_to_segments(junctions, line_map)
-            outputs["line_segments"] = line_segments
-
-        if resize:
-            outputs["line_segments"] /= s
-            outputs["descriptor"] = interpolate(outputs["descriptor"][None],
-                                                orig_shape, mode='bilinear')
+            outputs["line_segments"] = line_segments / scale_factor
 
         return outputs
 
     def match_lines(self, lines0, lines1, desc0=None, desc1=None,
-                    img0=None, img1=None):
+                    img0=None, img1=None, scale_factor0=1, scale_factor1=1):
         """ Match lines between two images.
             Either the dense descriptor or the input images should be provided.
             If the image dense descriptors desc0 and desc1 are not provided,
@@ -194,13 +189,18 @@ class Sold2Wrapper():
             raise ValueError("No dense descriptor or image provided.")
 
         if desc0 is None:
-            desc0 = self.detect_lines(img0, desc_only=True)["descriptor"]
+            out0 = self.detect_lines(img0, desc_only=True)
+            desc0 = out0["descriptor"][None]
+            scale_factor0 = out0["scale_factor"]
         if desc1 is None:
-            desc1 = self.detect_lines(img1, desc_only=True)["descriptor"]
-        desc0, desc1 = desc0[None], desc1[None]
+            out1 = self.detect_lines(img1, desc_only=True)
+            desc1 = out1["descriptor"][None]
+            scale_factor1 = out1["scale_factor"]
 
-        # Match the lines between the two images
-        matches = self.line_matcher.forward(lines0, lines1, desc0, desc1)
+        # Match the lines between the two images, taking into account
+        # the difference of scale between lines and descriptors
+        matches = self.line_matcher.forward(
+            lines0 * scale_factor0, lines1 * scale_factor1, desc0, desc1)
         return matches
 
 
@@ -292,8 +292,10 @@ class LineMatcher():
             matches = self.sold2.match_lines(
                 line_features0["line_segments"],
                 line_features1["line_segments"],
-                desc0=line_features0["descriptor"],
-                desc1=line_features1["descriptor"])
+                desc0=line_features0["descriptor"][None],
+                desc1=line_features1["descriptor"][None],
+                scale_factor0=line_features0["scale_factor"],
+                scale_factor1=line_features1["scale_factor"])
         elif self.matcher == 'sold2' and self.detector == 'lsd':
             matches = self.sold2.match_lines(
                 line_features0["line_segments"],
