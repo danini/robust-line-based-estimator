@@ -13,5 +13,8 @@ pip install -e third_party/pytlsd
 # Install PytLBD
 pip install -e third_party/pytlbd
 
+# Install Progressive-X
+pip install -e third_party/progressive-x
+
 # Install the robust line-based estimator
 pip install -e .

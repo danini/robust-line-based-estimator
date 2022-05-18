@@ -3,7 +3,13 @@
 	url = https://github.com/cvg/SOLD2
 [submodule "third_party/pytlsd"]
 	path = third_party/pytlsd
-	url = git@github.com:iago-suarez/pytlsd.git
+	url = https://github.com/iago-suarez/pytlsd
 [submodule "third_party/pytlbd"]
 	path = third_party/pytlbd
-	url = git@github.com:iago-suarez/pytlbd.git
+	url = https://github.com/iago-suarez/pytlbd
+[submodule "third_party/graph-cut-ransac"]
+	path = third_party/graph-cut-ransac
+	url = https://github.com/danini/graph-cut-ransac
+[submodule "third_party/progressive-x"]
+	path = third_party/progressive-x
+	url = https://github.com/danini/progressive-x
