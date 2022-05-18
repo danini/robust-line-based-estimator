@@ -231,3 +231,32 @@ def plot_color_lines(lines, correct_matches, wrong_matches,
             (endpoint0[i, 1], endpoint1[i, 1]),
             zorder=1, transform=fig.transFigure, c=c[i],
             linewidth=lw) for i in range(len(l))]
+        
+        
+def plot_vp(lines, vp_labels, lw=2, indices=(0, 1)):
+    """ Plot the vanishing directions of the lines, given the vp labels.
+    Lines labelled with -1 are ignored.
+    Args:
+        lines: list of ndarrays of size (N, 2, 2).
+        vp_labels: list of labels indicating the corresponding vp.
+        lw: line width as float pixels.
+        indices: indices of the images to draw the matches on.
+    """
+    num_labels = np.amax([np.amax(vp) for vp in vp_labels if len(vp) > 0]) + 1
+    colors = sns.color_palette("hls", num_labels)
+    
+    fig = plt.gcf()
+    ax = fig.axes
+    assert len(ax) > max(indices)
+    axes = [ax[i] for i in indices]
+    fig.canvas.draw()
+
+    # Plot the lines and color them according to their VP
+    for a, l, vp in zip(axes, lines, vp_labels):
+        for i in range(len(l)):
+            if vp[i] == -1:
+                continue
+            line = matplotlib.lines.Line2D(
+                (l[i, 0, 0], l[i, 1, 0]), (l[i, 0, 1], l[i, 1, 1]),
+                zorder=1, c=colors[vp[i]], linewidth=lw)
+            a.add_line(line)
