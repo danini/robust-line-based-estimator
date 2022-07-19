@@ -96,14 +96,29 @@ def evaluate_R_t(R_gt, t_gt, R, t, q_gt=None):
     q = q / (np.linalg.norm(q) + eps)
     q_gt = q_gt / (np.linalg.norm(q_gt) + eps)
     loss_q = np.maximum(eps, (1.0 - np.sum(q * q_gt)**2))
-    err_q = np.arccos(1 - 2 * loss_q)
+    err_q = np.rad2deg(np.arccos(1 - 2 * loss_q))
 
     t = t / (np.linalg.norm(t) + eps)
     t_gt = t_gt / (np.linalg.norm(t_gt) + eps)
     loss_t = np.maximum(eps, (1.0 - np.sum(t * t_gt)**2))
-    err_t = np.arccos(np.sqrt(1 - loss_t))
+    err_t = np.rad2deg(np.arccos(np.sqrt(1 - loss_t)))
 
     if np.sum(np.isnan(err_q)) or np.sum(np.isnan(err_t)):
         raise ValueError("NaN error.")
 
     return err_q, err_t
+
+
+def pose_auc(errors, thresholds=[5, 10, 20]):
+    sort_idx = np.argsort(errors)
+    errors = np.array(errors.copy())[sort_idx]
+    recall = (np.arange(len(errors)) + 1) / len(errors)
+    errors = np.r_[0., errors]
+    recall = np.r_[0., recall]
+    aucs = []
+    for t in thresholds:
+        last_index = np.searchsorted(errors, t)
+        r = np.r_[recall[:last_index], recall[last_index-1]]
+        e = np.r_[errors[:last_index], t]
+        aucs.append(np.trapz(r, x=e)/t)
+    return aucs

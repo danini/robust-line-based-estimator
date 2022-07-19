@@ -13,3 +13,6 @@
 [submodule "third_party/progressive-x"]
 	path = third_party/progressive-x
 	url = https://github.com/danini/progressive-x.git
+[submodule "third_party/SuperGluePretrainedNetwork"]
+	path = third_party/SuperGluePretrainedNetwork
+	url = git@github.com:magicleap/SuperGluePretrainedNetwork.git

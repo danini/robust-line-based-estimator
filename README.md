@@ -25,3 +25,12 @@ tar -xf  RANSAC-Tutorial-Data-EF.tar
 ```
 
 Then run the notebook `examples/relative_pose_evaluation_phototourism.ipynb`.
+
+## Evaluation on the ScanNet dataset
+Download the data from the test set for relative pose estimation used in SuperGlue (~250Mb for 1500 image pairs only):
+```
+wget https://www.polybox.ethz.ch/index.php/s/YhVDuO4fDCNM79A/download
+unzip ScanNet_test.zip -d <path to extract the ScanNet test set>
+```
+
+Then run the notebook `examples/relative_pose_evaluation_scannet.ipynb`.
