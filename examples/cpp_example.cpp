@@ -157,6 +157,7 @@ int main(int argc, const char* argv[])
 	printf("%d inliers are found out which\n", static_cast<int>(statistics.inliers.size()));
 	printf("- %d are point correspondences\n", static_cast<int>(inlierTypeCounts[0]));
 	printf("- %d are line correspondences\n", static_cast<int>(inlierTypeCounts[1]));
+	printf("The best model was initialized by type %d.\n", statistics.model_initializing_type);
 	printf("Iteration number = %d\n", static_cast<int>(statistics.iteration_number));
 	printf("Processing time = %f\n", statistics.processing_time);
 

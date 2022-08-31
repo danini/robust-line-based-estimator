@@ -45,7 +45,8 @@ namespace hybridransac
 			size_t local_optimization_number,
 				iteration_number,
 				accepted_models,
-				rejected_models;
+				rejected_models,
+				model_initializing_type;
 
 			double processing_time;
 			std::vector<std::pair<size_t, size_t>> inliers;

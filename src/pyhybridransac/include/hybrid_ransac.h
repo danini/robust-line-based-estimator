@@ -203,6 +203,9 @@ namespace hybridransac
 					// Update the parameters of the best model
 					bestModel = model;
 
+					// Saving the type index that initialized the current model
+					statistics.model_initializing_type = selectedSolver;
+
 					// TODO: 
 					// 1. Do local optimization in a heterogeneous way on all data types. Maybe with ceres?
 					// 2. Adaptive iteration number
