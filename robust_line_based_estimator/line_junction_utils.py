@@ -124,7 +124,7 @@ def reprojection_errors(keypoints1, keypoints2, points3d, P1, P2):
     projections1 = points3d @ P1.T
     projections2 = points3d @ P2.T
 
-    behind_camera = (projections1[:, 2] > 0) & (projections2[:, 2] > 0)
+    behind_camera = (projections1[:, 2] < 0) & (projections2[:, 2] < 0)
 
     # Homogeneous division
     projections1 = projections1[:, :2] / projections1[:, 2, None]
