@@ -205,18 +205,47 @@ def get_implicit_line(endpoint1, endpoint2):
     c = -n[0] * endpoint1[0] - n[1] * endpoint1[1]
     return np.array([n[0], n[1], c])
 
-def get_line_junctions(m_lines1, m_lines2):
+def get_line_junctions(m_lines1, m_lines2, valid_pairs = None):
     num_matches = m_lines1.shape[0]
 
-    keypoints1 = []
-    keypoints2 = []
-    for line_idx1 in range(num_matches - 1):
-        # Line in the source image
-        line11 = get_implicit_line(m_lines1[line_idx1][0][:], m_lines1[line_idx1][1][:])
-        # Line in the destination image
-        line21 = get_implicit_line(m_lines2[line_idx1][0][:], m_lines2[line_idx1][1][:])
+    if valid_pairs is None:
+        keypoints1 = []
+        keypoints2 = []
+        for line_idx1 in range(num_matches - 1):
+            # Line in the source image
+            line11 = get_implicit_line(m_lines1[line_idx1][0][:], m_lines1[line_idx1][1][:])
+            # Line in the destination image
+            line21 = get_implicit_line(m_lines2[line_idx1][0][:], m_lines2[line_idx1][1][:])
 
-        for line_idx2 in range(line_idx1 + 1, num_matches):
+            for line_idx2 in range(line_idx1 + 1, num_matches):
+                # Line in the source image
+                line12 = get_implicit_line(m_lines1[line_idx2][0][:], m_lines1[line_idx2][1][:])
+                # Line in the destination image
+                line22 = get_implicit_line(m_lines2[line_idx2][0][:], m_lines2[line_idx2][1][:])
+
+                # Intersection in the source image
+                intersection1 = np.cross(line11, line12)
+                if abs(intersection1[2]) < 1e-9:
+                    continue
+                intersection1 /= intersection1[2]
+                # Intersection in the destination image
+                intersection2 = np.cross(line21, line22)
+                if abs(intersection2[2]) < 1e-9:
+                    continue
+                intersection2 /= intersection2[2]
+                # Save the junctions
+                keypoints1.append(intersection1[:2])
+                keypoints2.append(intersection2[:2])
+        return np.array(keypoints1), np.array(keypoints2)
+    else:
+        keypoints1 = []
+        keypoints2 = []
+        for (line_idx1, line_idx2, dist) in valid_pairs:
+            # Line in the source image
+            line11 = get_implicit_line(m_lines1[line_idx1][0][:], m_lines1[line_idx1][1][:])
+            # Line in the destination image
+            line21 = get_implicit_line(m_lines2[line_idx1][0][:], m_lines2[line_idx1][1][:])
+
             # Line in the source image
             line12 = get_implicit_line(m_lines1[line_idx2][0][:], m_lines1[line_idx2][1][:])
             # Line in the destination image
@@ -235,4 +264,4 @@ def get_line_junctions(m_lines1, m_lines2):
             # Save the junctions
             keypoints1.append(intersection1[:2])
             keypoints2.append(intersection2[:2])
-    return np.array(keypoints1), np.array(keypoints2)
+        return np.array(keypoints1), np.array(keypoints2)
