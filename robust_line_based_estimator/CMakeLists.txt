@@ -1,0 +1,7 @@
+add_subdirectory(base)
+add_subdirectory(solvers)
+add_subdirectory(estimators)
+
+pybind11_add_module(line_relative_pose_estimators ${LINE_RELATIVE_POSE_SOURCES})
+target_link_libraries(line_relative_pose_estimators PRIVATE ${LINE_RELATIVE_POSE_EXTERNAL_LIBRARIES} ${LINE_RELATIVE_POSE_INTERNAL_LIBRARIES})
+
