@@ -5,11 +5,11 @@ from copy import deepcopy
 from omegaconf import OmegaConf
 from torch.nn.functional import softmax, interpolate
 
-from sold2.model.model_util import SOLD2Net
-from sold2.model.line_detection import LineSegmentDetectionModule
-from sold2.model.line_matching import WunschLineMatcher
-from sold2.train import convert_junc_predictions
-from sold2.model.line_detector import line_map_to_segments
+from third_party.SOLD2.sold2.model.model_util import SOLD2Net
+from third_party.SOLD2.sold2.model.line_detection import LineSegmentDetectionModule
+from third_party.SOLD2.sold2.model.line_matching import WunschLineMatcher
+from third_party.SOLD2.sold2.train import convert_junc_predictions
+from third_party.SOLD2.sold2.model.line_detector import line_map_to_segments
 from pytlsd import lsd
 from pytlbd import lbd_multiscale_pyr, lbd_matching_multiscale
 
