@@ -2,6 +2,8 @@ set(FOLDER_NAME "solvers")
 
 LINE_RELATIVE_POSE_ADD_SOURCES(
     sturm.h charpoly.h
+    essential_matrix_coeffs.h essential_matrix_poly.h
+    5pt_solver.hxx
     solver_H.h
 
     solver_wrapper_1vp_222cl.h

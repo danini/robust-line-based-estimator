@@ -8,7 +8,7 @@
 #include <Eigen/Dense>
 #include <math.h>
 
-#include "5pt_solver.hxx" //extracted from COLMAP, not the fastest solution
+#include "5pt_solver.hxx" // extracted from COLMAP, not the fastest solution
 
 //PROTOTYPES
 //finds a set of essential matrices that are consistent with the input homography
