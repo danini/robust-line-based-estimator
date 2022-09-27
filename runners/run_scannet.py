@@ -2,6 +2,7 @@
 # coding: utf-8
 # ## Relative pose estimation on ScanNet
 
+import pdb
 import os, sys
 import cv2
 import numpy as np
@@ -17,6 +18,17 @@ from robust_line_based_estimator.visualization import (plot_images, plot_lines, 
 from third_party.SuperGluePretrainedNetwork.models.matching import Matching
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from functions import verify_pyprogressivex, sg_matching, find_homography_points, find_relative_pose_from_points
+from robust_line_based_estimator.hybrid_relative_pose import run_hybrid_relative_pose
+
+###########################################
+# Hyperparameters to be tuned
+###########################################
+TH_PIXEL = 1.0
+# 0 - 5pt
+# 1 - 4line
+# 2 - 1vp + 3pt
+# 3 - 2vp + 2pt
+SOLVER_FLAGS = [True, True, True, True]
 
 ###########################################
 # Initialize the dataset
@@ -88,7 +100,14 @@ for data in tqdm(dataloader):
     # Evaluate the relative pose
     # TODO: compute the relative pose from VP and homography association
     mkpts, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
-    pred_R_1_2, pred_T_1_2, pts1_inl, pts2_inl = find_relative_pose_from_points(mkpts, K1, K2)
+    # pred_R_1_2, pred_T_1_2, pts1_inl, pts2_inl = find_relative_pose_from_points(mkpts, K1, K2)
+    pred_R_1_2, pred_T_1_2 = run_hybrid_relative_pose(K1, K2,
+                                                      [m_lines1_inl.reshape(m_lines1_inl.shape[0], -1).transpose(), m_lines2_inl.reshape(m_lines2_inl.shape[0], -1).transpose()],
+                                                      [m_vp1.transpose(), m_vp2.transpose()],
+                                                      [mkpts[:,:2].transpose(), mkpts[:,2:4].transpose()],
+                                                      [m_label1, m_label2],
+                                                      th_pixel=TH_PIXEL,
+                                                      solver_flags=SOLVER_FLAGS)
     if pred_R_1_2 is None:
         pose_errors.append(np.inf)
     else:

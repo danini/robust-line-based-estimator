@@ -28,8 +28,8 @@
 //
 // author: Torsten Sattler, torsten.sattler.de@googlemail.com
 
-#ifndef LINE_RELATIVE_POSE_ESTIMATORS_LINE_RELATIVE_POSE_RANSAC_H_
-#define LINE_RELATIVE_POSE_ESTIMATORS_LINE_RELATIVE_POSE_RANSAC_H_
+#ifndef LINE_RELATIVE_POSE_ESTIMATORS_LINE_RELATIVE_POSE_HYBRID_RANSAC_H_
+#define LINE_RELATIVE_POSE_ESTIMATORS_LINE_RELATIVE_POSE_HYBRID_RANSAC_H_
 
 #include <algorithm>
 #include <cmath>
@@ -46,11 +46,8 @@ namespace line_relative_pose {
 
 using namespace ransac_lib;
 
-// Implements Hybrid LO-RANSAC with MSAC (top-hat) scoring, based on the
-// descriptions provided in [Camposeco, Cohen, Pollefeys, Sattler, Hybrid Camera
-// Pose Estimation, CVPR 2018] and [Lebeda, Matas, Chum, Fixing the Locally
-// Optimized RANSAC, BMVC 2012]. Iteratively re-weighted least-squares
-// optimization is optional.
+// Our customized RANSAC based on HybridLocallyOptimizedMSAC from RansacLib
+// [LINK] https://github.com/tsattler/RansacLib/blob/master/RansacLib/hybrid_ransac.h
 template <class Model, class ModelVector, class HybridSolver,
           class Sampler = HybridUniformSampling<HybridSolver> >
 class HybridLineRelativePoseRansac : public HybridRansacBase {

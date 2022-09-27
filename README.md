@@ -1,5 +1,20 @@
 # robust-line-based-estimator
 
+## TODOs
+
+* [ ] Local Optimization 
+* [ ] Advanced sampling
+
+## New Installation needed for the solver part
+
+```
+git submodule update --init --recursive
+mkdir build && cd build
+cmake -DPYTHON_EXECUTABLE=${PATH_TO_YOUR_PYTHON_EXECUTABLE} ..
+make -j4
+cd ..
+```
+
 ## Installation
 
 Clone the repository and its submodules:
@@ -15,6 +30,12 @@ sudo apt-get install libopencv-dev libopencv-contrib-dev libarpack++2-dev libarp
 Install the necessary requirements and third party libraries:
 ```
 bash install.sh
+```
+
+## Evaluation - Python
+Data preparation is kept the same. And then run:
+```
+python runners/run_scannet.py
 ```
 
 ## Evaluation on the PhotoTourism dataset

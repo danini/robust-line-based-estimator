@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include <vector>
 #include <stdlib.h>
@@ -18,22 +20,22 @@
 //PROTOTYPES
 //the 5pt solver
 //returns number of real solutions
-int essential_solver(const Eigen::Vector2d points1[5], //array of 5 points in the 1st camera
+inline int essential_solver(const Eigen::Vector2d points1[5], //array of 5 points in the 1st camera
 					 const Eigen::Vector2d points2[5], //array of 5 points in the 2nd camera
 					 Eigen::Matrix3d * Es); //output array of at most 10 essential matrices consistent with the input
 					 
 //decomposes the essential matrix into the rotation and translation
 //returns number of valid poses
-int decompose_essential(const Eigen::Matrix3d E, //essential matrix
+inline int decompose_essential(const Eigen::Matrix3d E, //essential matrix
 						Eigen::Matrix3d * Rs, //array of at most 4 output rotation matrices
 						Eigen::Vector3d * ts); //array of at most 4 output translation vectors
 
-bool FindPolynomialRootsCompanionMatrix(const Eigen::VectorXd& coeffs_all,
+inline bool FindPolynomialRootsCompanionMatrix(const Eigen::VectorXd& coeffs_all,
                                     Eigen::VectorXd* real,
                                     Eigen::VectorXd* imag);
 
 //FUNCTIONS
-int essential_solver(const Eigen::Vector2d points1[5], const Eigen::Vector2d points2[5], Eigen::Matrix3d * Es)
+inline int essential_solver(const Eigen::Vector2d points1[5], const Eigen::Vector2d points2[5], Eigen::Matrix3d * Es)
 {
 	//obtain homogeneous points
 	Eigen::Vector3d P1[5];
@@ -156,7 +158,7 @@ int essential_solver(const Eigen::Vector2d points1[5], const Eigen::Vector2d poi
 }
 
 // Remove leading zero coefficients.
-Eigen::VectorXd RemoveLeadingZeros(const Eigen::VectorXd& coeffs)
+inline Eigen::VectorXd RemoveLeadingZeros(const Eigen::VectorXd& coeffs)
 {
 	Eigen::VectorXd::Index num_zeros = 0;
 	for (; num_zeros < coeffs.size(); ++num_zeros)
@@ -170,7 +172,7 @@ Eigen::VectorXd RemoveLeadingZeros(const Eigen::VectorXd& coeffs)
 }
 
 // Remove trailing zero coefficients.
-Eigen::VectorXd RemoveTrailingZeros(const Eigen::VectorXd& coeffs)
+inline Eigen::VectorXd RemoveTrailingZeros(const Eigen::VectorXd& coeffs)
 {
 	Eigen::VectorXd::Index num_zeros = 0;
 	for (; num_zeros < coeffs.size(); ++num_zeros)
@@ -183,7 +185,7 @@ Eigen::VectorXd RemoveTrailingZeros(const Eigen::VectorXd& coeffs)
 	return coeffs.head(coeffs.size() - num_zeros);
 }
 
-bool FindLinearPolynomialRoots(const Eigen::VectorXd& coeffs, Eigen::VectorXd* real, Eigen::VectorXd* imag)
+inline bool FindLinearPolynomialRoots(const Eigen::VectorXd& coeffs, Eigen::VectorXd* real, Eigen::VectorXd* imag)
 {
 	//CHECK_EQ(coeffs.size(), 2);
 
@@ -207,7 +209,7 @@ bool FindLinearPolynomialRoots(const Eigen::VectorXd& coeffs, Eigen::VectorXd* r
 	return true;
 }
 
-bool FindQuadraticPolynomialRoots(const Eigen::VectorXd& coeffs, Eigen::VectorXd* real, Eigen::VectorXd* imag)
+inline bool FindQuadraticPolynomialRoots(const Eigen::VectorXd& coeffs, Eigen::VectorXd* real, Eigen::VectorXd* imag)
 {
   //CHECK_EQ(coeffs.size(), 3);
 
@@ -327,7 +329,7 @@ bool FindQuadraticPolynomialRoots(const Eigen::VectorXd& coeffs, Eigen::VectorXd
   return true;
 }*/
 
-bool FindPolynomialRootsCompanionMatrix(const Eigen::VectorXd& coeffs_all,
+inline bool FindPolynomialRootsCompanionMatrix(const Eigen::VectorXd& coeffs_all,
                                     Eigen::VectorXd* real,
                                     Eigen::VectorXd* imag)
 {
@@ -409,7 +411,7 @@ bool FindPolynomialRootsCompanionMatrix(const Eigen::VectorXd& coeffs_all,
 	return true;
 }
 
-int decompose_essential(const Eigen::Matrix3d E, Eigen::Matrix3d * Rs, Eigen::Vector3d * ts)
+inline int decompose_essential(const Eigen::Matrix3d E, Eigen::Matrix3d * Rs, Eigen::Vector3d * ts)
 {
 	Eigen::JacobiSVD<Eigen::Matrix3d> svd(E, Eigen::ComputeFullU | Eigen::ComputeFullV);
 	Eigen::Matrix3d U = svd.matrixU();

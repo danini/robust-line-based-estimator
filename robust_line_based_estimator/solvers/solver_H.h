@@ -7,6 +7,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <math.h>
+#include <random>
 
 #include "5pt_solver.hxx" // extracted from COLMAP, not the fastest solution
 

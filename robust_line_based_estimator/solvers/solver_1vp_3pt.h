@@ -4,6 +4,7 @@
 // #include <vector>
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <random>
 
 //PROTOTYPES
 //compute relative pose from 1 vanishing point and 3 points

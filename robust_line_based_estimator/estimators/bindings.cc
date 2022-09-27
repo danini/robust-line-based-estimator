@@ -10,7 +10,12 @@ namespace py = pybind11;
 #include <RansacLib/hybrid_ransac.h>
 #include <Eigen/Core>
 
-void bind_estimators(py::module& m) {}
+#include "estimators/functions.h"
+
+void bind_estimators(py::module& m) {
+    using namespace line_relative_pose;
+    m.def("run_hybrid_relative_pose", &run_hybrid_relative_pose);
+}
 
 void bind_ransaclib(py::module& m) {
     // ransac
@@ -75,7 +80,7 @@ void bind_ransaclib(py::module& m) {
         .def_readwrite("final_least_squares_", &ransac_lib::HybridLORansacOptions::final_least_squares_);
 }
 
-PYBIND11_MODULE(uncalibrated_vp_estimators, m){
+PYBIND11_MODULE(line_relative_pose_estimators, m){
     m.doc() = "pybind11 for line-based relative pose estimation";
     bind_ransaclib(m);
     bind_estimators(m);
