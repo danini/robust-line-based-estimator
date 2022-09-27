@@ -158,20 +158,19 @@ def plot_line_matches(kpts0, kpts1, color=None, lw=1.5, indices=(0, 1), a=1.):
 
 
 def plot_color_line_matches(lines, correct_matches=None,
-                            lw=2, color=None, indices=(0, 1)):
+                            lw=2, indices=(0, 1), colors=None):
     """Plot line matches for existing images with multiple colors.
     Args:
         lines: list of ndarrays of size (N, 2, 2).
         correct_matches: bool array of size (N,) indicating correct matches.
         lw: line width as float pixels.
         indices: indices of the images to draw the matches on.
+        colors: optionally specify the colors to use.
     """
     n_lines = len(lines[0])
-    if color is None:
-        color = sns.color_palette('husl', n_colors=n_lines)
-        np.random.shuffle(color)
-    if isinstance(color, tuple) or isinstance(color, str):
-        color = [color] * n_lines
+    if colors is None:
+        colors = sns.color_palette('husl', n_colors=n_lines)
+        np.random.shuffle(colors)
     alphas = np.ones(n_lines)
     # If correct_matches is not None, display wrong matches with a low alpha
     if correct_matches is not None:

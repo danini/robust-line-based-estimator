@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Pre-trained weights
+robust_line_based_estimator/line_matching/weights

@@ -18,3 +18,16 @@ pip install -e third_party/progressive-x
 
 # Install the robust line-based estimator
 pip install -e .
+
+# Download the pre-trained model for SuperPoint
+echo "Downloading SuperPoint model..."
+mkdir -p robust_line_based_estimator/line_matching/weights
+wget -O superpoint_v1.pth https://github.com/magicleap/SuperPointPretrainedNetwork/blob/master/superpoint_v1.pth?raw=true
+mv superpoint_v1.pth robust_line_based_estimator/line_matching/weights/
+
+# Download the pre-trained model for SuperGlue
+echo "Downloading SuperGlue models..."
+wget -O superglue_indoor.pth https://github.com/magicleap/SuperGluePretrainedNetwork/blob/master/models/weights/superglue_indoor.pth?raw=true
+wget -O superglue_outdoor.pth https://github.com/magicleap/SuperGluePretrainedNetwork/blob/master/models/weights/superglue_outdoor.pth?raw=true
+mv superglue_indoor.pth robust_line_based_estimator/line_matching/weights/
+mv superglue_outdoor.pth robust_line_based_estimator/line_matching/weights/
