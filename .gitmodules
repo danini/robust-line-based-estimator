@@ -1,0 +1,27 @@
+[submodule "third_party/SOLD2"]
+	path = third_party/SOLD2
+	url = https://github.com/cvg/SOLD2
+[submodule "third_party/pytlsd"]
+	path = third_party/pytlsd
+	url = https://github.com/iago-suarez/pytlsd
+[submodule "third_party/pytlbd"]
+	path = third_party/pytlbd
+	url = https://github.com/iago-suarez/pytlbd
+[submodule "third_party/graph-cut-ransac"]
+	path = third_party/graph-cut-ransac
+	url = https://github.com/danini/graph-cut-ransac
+[submodule "third_party/progressive-x"]
+	path = third_party/progressive-x
+	url = https://github.com/danini/progressive-x.git
+[submodule "third_party/SuperGluePretrainedNetwork"]
+	path = third_party/SuperGluePretrainedNetwork
+	url = git@github.com:magicleap/SuperGluePretrainedNetwork.git
+[submodule "third_party/HighFive"]
+	path = third_party/HighFive
+	url = git@github.com:B1ueber2y/HighFive.git
+[submodule "third_party/RansacLib"]
+	path = third_party/RansacLib
+	url = git@github.com:B1ueber2y/RansacLib.git
+[submodule "third_party/pybind11"]
+	path = third_party/pybind11
+	url = git@github.com:pybind/pybind11.git
