@@ -7,8 +7,14 @@ def vp_matching(vp0, label0, vp1, label1):
         given a corresponding set of lines. The lines corresponding
         to label0 and label1 should be matching. """
     assert len(label0) == len(label1), "1:1 correspondence between lines is not respected."
+
     # Build a matrix of common lines
     n_vp0, n_vp1 = len(vp0), len(vp1)
+    if n_vp0 == 0 or n_vp1 == 0:
+        m_vp0, m_vp1 = [], []
+        m_label0, m_label1 = -np.ones_like(label0), -np.ones_like(label1)
+        return m_vp0, m_label0, m_vp1, m_label1
+
     common_lines = np.zeros((n_vp0, n_vp1))
     for l0, l1 in zip(label0, label1):
         if l0 == n_vp0 or l1 == n_vp1:

@@ -191,7 +191,7 @@ def plot_color_line_matches(lines, correct_matches=None,
         fig.lines += [matplotlib.lines.Line2D(
             (endpoint0[i, 0], endpoint1[i, 0]),
             (endpoint0[i, 1], endpoint1[i, 1]),
-            zorder=1, transform=fig.transFigure, c=colors[i],
+            zorder=1, transform=fig.transFigure, c=color[i],
             alpha=alphas[i], linewidth=lw) for i in range(n_lines)]
 
 
