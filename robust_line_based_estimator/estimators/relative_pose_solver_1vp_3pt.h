@@ -7,7 +7,6 @@
 
 namespace line_relative_pose {
 
-// 5-point essential matrix
 class RelativePoseSolver1vp3pt: public RelativePoseSolverBase {
 public:
     RelativePoseSolver1vp3pt(): RelativePoseSolverBase() {}
