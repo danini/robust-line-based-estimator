@@ -76,7 +76,7 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& m
     THROW_CHECK_EQ(t, 2);
 
     // fundamental matrix
-    // TODO: we should compute this again and again
+    // TODO: we shouldnt compute this again and again
     M3D R = model.first;
     V3D T = model.second;
     M3D tskew;
