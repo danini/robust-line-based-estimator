@@ -10,7 +10,7 @@ from tqdm import tqdm
 import torch
 
 from robust_line_based_estimator.datasets.scannet import ScanNet
-from robust_line_based_estimator.line_matcher import LineMatcher
+from robust_line_based_estimator.line_matching.line_matcher import LineMatcher
 from robust_line_based_estimator.vp_matcher import vp_matching
 from robust_line_based_estimator.evaluation import evaluate_R_t, pose_auc
 from robust_line_based_estimator.visualization import (plot_images, plot_lines, plot_color_line_matches,
@@ -19,6 +19,7 @@ from third_party.SuperGluePretrainedNetwork.models.matching import Matching
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from functions import verify_pyprogressivex, sg_matching, find_homography_points, find_relative_pose_from_points
 from robust_line_based_estimator.hybrid_relative_pose import run_hybrid_relative_pose
+from robust_line_based_estimator.point_based_relative_pose import run_point_based_relative_pose
 
 ###########################################
 # Hyperparameters to be tuned
@@ -29,11 +30,13 @@ TH_PIXEL = 1.0
 # 2 - 1vp + 3pt
 # 3 - 2vp + 2pt
 SOLVER_FLAGS = [True, True, True, True]
+RUN_POINT_BASED = [0, 1, 2] # 0 - SuperPoint+SuperGlue; 1 - junctions; 2 - both
+RUN_LINE_BASED = []
 
 ###########################################
 # Initialize the dataset
 ###########################################
-dataset = ScanNet(root_dir=os.path.expanduser("~/data/ScanNet_relative_pose"), split='test')
+dataset = ScanNet(root_dir=os.path.expanduser("/media/hdd3tb/datasets/scannet/scannet_lines_project/ScanNet_test"), split='test')
 dataloader = dataset.get_dataloader()
 
 ###########################################
@@ -53,7 +56,8 @@ superglue_matcher = Matching(config).eval().to(device)
 # Initialize the line method
 ###########################################
 line_method = 'lsd'  # 'lsd' or 'SOLD2' supported for now
-if line_method == 'sold2':
+matcher_type  = "superglue_endpoints"
+if matcher_type == 'sold2':
     # SOLD2 matcher
     conf = {
         'sold2': {
@@ -61,10 +65,19 @@ if line_method == 'sold2':
             'device': 'cpu'
         }
     }
-    sold2_matcher = LineMatcher(line_detector='sold2', line_matcher='sold2', conf=conf)
-else:
+    line_matcher = LineMatcher(line_detector='sold2', line_matcher='sold2', conf=conf)
+elif matcher_type == "lbd":
     # LSD+LBD matcher
-    lsd_lbd_matcher = LineMatcher(line_detector='lsd', line_matcher='lbd')
+    line_matcher = LineMatcher(line_detector='lsd', line_matcher='lbd')
+elif matcher_type == "superglue_endpoints":
+    # SuperGlue matcher
+    conf = {
+        'sg_params': {
+            'weights': 'indoor'
+        } 
+    }
+    line_matcher = LineMatcher(line_detector=line_method, line_matcher='superglue_endpoints', conf=conf)
+    
 
 ###########################################
 # Relative pose estimation
@@ -81,14 +94,9 @@ for data in tqdm(dataloader):
     K2 = data["K2"]
 
     # Detect, describe and match lines
-    if line_method == 'sold2':
-        line_feat1 = sold2_matcher.detect_and_describe_lines(gray_img1)
-        line_feat2 = sold2_matcher.detect_and_describe_lines(gray_img2)
-        _, m_lines1, m_lines2 = sold2_matcher.match_lines(gray_img1, gray_img2, line_feat1, line_feat2)
-    else:
-        line_feat1 = lsd_lbd_matcher.detect_and_describe_lines(gray_img1)
-        line_feat2 = lsd_lbd_matcher.detect_and_describe_lines(gray_img2)
-        _, m_lines1, m_lines2 = lsd_lbd_matcher.match_lines(gray_img1, gray_img2, line_feat1, line_feat2)
+    line_feat1 = line_matcher.detect_and_describe_lines(gray_img1)
+    line_feat2 = line_matcher.detect_and_describe_lines(gray_img2)
+    _, m_lines1, m_lines2 = line_matcher.match_lines(gray_img1, gray_img2, line_feat1, line_feat2)
 
     # Compute and match VPs
     m_lines1_inl = m_lines1[:, :, [1, 0]]
@@ -96,10 +104,20 @@ for data in tqdm(dataloader):
     m_lines2_inl = m_lines2[:, :, [1, 0]]
     vp2, label2 = verify_pyprogressivex(gray_img2, m_lines2_inl, threshold=1.5)
     m_vp1, m_label1, m_vp2, m_label2 = vp_matching(vp1, label1, vp2, label2)
-
+    
+    # Detect keypoints by SuperPoint + SuperGlue
+    mkpts, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
+    
+    # Run point-based estimators
+    for config in RUN_POINT_BASED:
+        run_point_based_relative_pose(K1, K2, 
+            mkpts,
+            mkpts,
+            TH_PIXEL,
+            config)
+           
     # Evaluate the relative pose
     # TODO: compute the relative pose from VP and homography association
-    mkpts, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
     # pred_R_1_2, pred_T_1_2, pts1_inl, pts2_inl = find_relative_pose_from_points(mkpts, K1, K2)
     pred_R_1_2, pred_T_1_2 = run_hybrid_relative_pose(K1, K2,
                                                       [m_lines1_inl.reshape(m_lines1_inl.shape[0], -1).transpose(), m_lines2_inl.reshape(m_lines2_inl.shape[0], -1).transpose()],
