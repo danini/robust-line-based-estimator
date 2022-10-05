@@ -50,7 +50,7 @@ Then run the notebook `examples/relative_pose_evaluation_phototourism.ipynb`.
 ## Evaluation on the ScanNet dataset
 Download the data from the test set for relative pose estimation used in SuperGlue (~250Mb for 1500 image pairs only):
 ```
-wget https://www.polybox.ethz.ch/index.php/s/YhVDuO4fDCNM79A/download
+wget https://www.polybox.ethz.ch/index.php/s/lAZyxm62WUh27Zl/download
 unzip ScanNet_test.zip -d <path to extract the ScanNet test set>
 ```
 
