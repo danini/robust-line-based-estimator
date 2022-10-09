@@ -31,7 +31,7 @@ int RelativePoseSolver4line::HomographySolver(const std::vector<LineMatch>& line
     H.row(2) = h.block<3,1>(6,0).transpose();
 
     Hs->resize(1);
-    (*Hs)[0] = H;
+    (*Hs)[0] = H.inverse();
     return 1;
 }
 

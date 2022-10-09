@@ -1,4 +1,5 @@
 #include "estimators/hybrid_relative_pose_estimator_base.h"
+#include "refinement/ls_sampson.h"
 #include <iostream>
 
 namespace line_relative_pose {
@@ -109,8 +110,11 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& m
 }
 
 void HybridRelativePoseEstimatorBase::LeastSquares(const std::vector<std::vector<int>>& sample, ResultType* res) const {
-    // TODO
-    return;
+    std::vector<PointMatch> junction_matches;
+    for (size_t i = 0; i < sample[2].size(); ++i) {
+        junction_matches.push_back(normalize_point_match(m_junctions_[sample[2][i]]));
+    } 
+    LeastSquares_Sampson(junction_matches, res);
 }
 
 } // namespace line_relative_pose
