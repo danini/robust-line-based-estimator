@@ -34,7 +34,7 @@ void LeastSquares_Sampson(const std::vector<PointMatch>& junction_matches, std::
         problem.SetParameterization(qvec.data(), quaternion_parameterization);
     }
 
-    // Solve the optimization problem and update the VP
+    // Solve the optimization problem
     ceres::Solve(options, &problem, &summary);
     res->first = QuaternionToRotationMatrix(qvec);
     res->second = tvec;
