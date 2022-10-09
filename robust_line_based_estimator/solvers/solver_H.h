@@ -68,7 +68,7 @@ int solve_homography_calibrated(const Eigen::Matrix3d H, Eigen::Matrix3d * Es)
 	//TODO use the arrays points1 + points2 and compactify this, and move after the generation of the points (together with definition of AA)
 	//TODO how to generate 5 well conditioned samples?
 	Eigen::JacobiSVD<Eigen::Matrix<double, 5, 9>> svd(AA, Eigen::ComputeFullU | Eigen::ComputeFullV);
-	std::cout << svd.singularValues() << "\n\n";
+	// std::cout << svd.singularValues() << "\n\n";
 	
 	int sols = essential_solver(points1, points2, Es);
 	
