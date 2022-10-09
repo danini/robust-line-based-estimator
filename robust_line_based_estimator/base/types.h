@@ -12,6 +12,7 @@ const double EPS = std::numeric_limits<double>::min();
 using V2D = Eigen::Vector2d;
 using V3D = Eigen::Vector3d;
 using V4D = Eigen::Vector4d;
+using M2D = Eigen::Matrix2d;
 using M3D = Eigen::Matrix3d;
 
 inline V3D homogeneous(const V2D& v2d) { return V3D(v2d(0), v2d(1), 1.0); }

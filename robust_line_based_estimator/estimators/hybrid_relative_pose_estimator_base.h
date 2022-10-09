@@ -74,6 +74,8 @@ protected:
     inline LineMatch normalize_line_match(const LineMatch& line_match) const { return std::make_pair(normalize_line(line_match.first, K1_inv_), normalize_line(line_match.second, K2_inv_)); }
     inline VPMatch normalize_vp_match(const VPMatch& vp_match) const { return std::make_pair(normalize_vp(vp_match.first, K1_inv_), normalize_vp(vp_match.second, K2_inv_)); }
     inline PointMatch normalize_point_match(const PointMatch& point_match) const { return std::make_pair(normalize_point(point_match.first, K1_inv_), normalize_point(point_match.second, K2_inv_)); }
+
+    bool check_cheirality(const V2D& p1, const V2D& p2, const M3D& R, const V3D& T) const;
 };
 
 }  // namespace ransac_lib
