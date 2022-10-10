@@ -23,7 +23,7 @@ struct SampsonCostFunctor {
 
         // residual (sampson)
         Eigen::Matrix<T, 3, 1> p1, p2;
-        p1[0] = T(p1_[0]); p1[1] = T(p1_[1]); p2[2] = T(p1_[2]);
+        p1[0] = T(p1_[0]); p1[1] = T(p1_[1]); p1[2] = T(p1_[2]);
         p2[0] = T(p2_[0]); p2[1] = T(p2_[1]); p2[2] = T(p2_[2]);
         T C = p2.transpose() * E * p1;
         Eigen::Matrix<T, 3, 1> epline1, epline2;
