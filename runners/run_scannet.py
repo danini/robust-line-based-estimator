@@ -37,7 +37,7 @@ SOLVER_FLAGS = [True, False, False, False]
 RUN_POINT_BASED = [0] # 0 - SuperPoint+SuperGlue; 1 - junctions; 2 - both
 RUN_LINE_BASED = []
 OUTPUT_DB_PATH = "scannet_matches.h5"
-CORE_NUMBER = 10
+CORE_NUMBER = 1
 
 ###########################################
 # Initialize the dataset
@@ -175,7 +175,7 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
         junctions_1.append(_estimators.Junction2d(point_matches[idx][:2]))
         junctions_2.append(_estimators.Junction2d(point_matches[idx][2:]))
     # pred_R_1_2, pred_T_1_2, pts1_inl, pts2_inl = find_relative_pose_from_points(mkpts, K1, K2)
-    if m_vp1.shape[0] == 0:
+    if np.array(m_vp1).shape[0] == 0:
         return np.inf, 0.0
     start_time = time.time()
     pred_R_1_2, pred_T_1_2 = run_hybrid_relative_pose(K1, K2,
