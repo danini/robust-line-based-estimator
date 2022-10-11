@@ -3,14 +3,14 @@
 
 namespace line_relative_pose {
 
-int RelativePoseSolver5pt::MinimalSolver(const std::vector<PointMatch>& point_matches,
+int RelativePoseSolver5pt::MinimalSolver(const std::vector<JunctionMatch>& junction_matches,
                                          std::vector<ResultType>* res) const 
 {
-    THROW_CHECK_EQ(point_matches.size(), 5);
+    THROW_CHECK_EQ(junction_matches.size(), 5);
     std::vector<V2D> points1(5), points2(5);
     for (size_t i = 0; i < 5; ++i) {
-        points1[i] = point_matches[i].first;
-        points2[i] = point_matches[i].second;
+        points1[i] = junction_matches[i].first.point();
+        points2[i] = junction_matches[i].second.point();
     }
 
     // solve for essential matrix
@@ -33,7 +33,7 @@ int RelativePoseSolver5pt::MinimalSolver(const std::vector<PointMatch>& point_ma
 
 int RelativePoseSolver5pt::MinimalSolverWrapper(const std::vector<LineMatch>& line_matches,
                                                 const std::vector<VPMatch>& vp_matches,
-                                                const std::vector<PointMatch>& junction_matches,
+                                                const std::vector<JunctionMatch>& junction_matches,
                                                 std::vector<ResultType>* res) const 
 {
     THROW_CHECK_EQ(line_matches.size(), 0);

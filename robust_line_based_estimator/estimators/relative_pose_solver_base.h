@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 
 #include "base/types.h"
+#include "base/junction.h"
 
 namespace line_relative_pose {
 
@@ -20,7 +21,7 @@ public:
 
     virtual int MinimalSolverWrapper(const std::vector<LineMatch>& line_matches, 
                                      const std::vector<VPMatch>& vp_matches,
-                                     const std::vector<PointMatch>& junction_matches,
+                                     const std::vector<JunctionMatch>& junction_matches,
                                      std::vector<ResultType>* res) const = 0;
 
 };

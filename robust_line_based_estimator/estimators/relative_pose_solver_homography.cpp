@@ -23,7 +23,7 @@ int RelativePoseSolverHomography::DecomposeHomography(const std::vector<M3D>& Hs
 
 int RelativePoseSolverHomography::MinimalSolverWrapper(const std::vector<LineMatch>& line_matches,
                                                 const std::vector<VPMatch>& vp_matches,
-                                                const std::vector<PointMatch>& junction_matches,
+                                                const std::vector<JunctionMatch>& junction_matches,
                                                 std::vector<ResultType>* res) const 
 {
     std::vector<int> min_sample_sizes = min_sample_size();

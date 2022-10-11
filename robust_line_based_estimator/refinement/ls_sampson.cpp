@@ -6,7 +6,7 @@
 
 namespace line_relative_pose {
 
-void LeastSquares_Sampson(const std::vector<PointMatch>& junction_matches, std::pair<M3D, V3D>* res) 
+void LeastSquares_Sampson(const std::vector<JunctionMatch>& junction_matches, std::pair<M3D, V3D>* res) 
 {
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::DENSE_QR;
@@ -20,8 +20,8 @@ void LeastSquares_Sampson(const std::vector<PointMatch>& junction_matches, std::
     V3D tvec = res->second;
     ceres::Problem problem;
     for (auto it = junction_matches.begin(); it != junction_matches.end(); ++it) {
-        V3D p1 = homogeneous(it->first);
-        V3D p2 = homogeneous(it->second);
+        V3D p1 = homogeneous(it->first.point());
+        V3D p2 = homogeneous(it->second.point());
         ceres::LossFunction* loss_function = new ceres::TrivialLoss();
         ceres::CostFunction* cost_function = SampsonCostFunctor::Create(p1, p2);
         problem.AddResidualBlock(cost_function, loss_function, qvec.data(), tvec.data());

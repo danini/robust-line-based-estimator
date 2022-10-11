@@ -4,11 +4,11 @@
 namespace line_relative_pose {
 
 int RelativePoseSolver2vp2pt::MinimalSolver(const std::vector<VPMatch>& vp_matches,
-                                            const std::vector<PointMatch>& point_matches,
+                                            const std::vector<JunctionMatch>& junction_matches,
                                             std::vector<ResultType>* res) const 
 {
     THROW_CHECK_EQ(vp_matches.size(), 2);
-    THROW_CHECK_EQ(point_matches.size(), 2);
+    THROW_CHECK_EQ(junction_matches.size(), 2);
 
     M3D Rs[4];
     int num_sols = stage_1_solver_rotation_2vp(vp_matches[0].first, vp_matches[0].second,
@@ -16,10 +16,10 @@ int RelativePoseSolver2vp2pt::MinimalSolver(const std::vector<VPMatch>& vp_match
     res->resize(num_sols);
     for (size_t i = 0; i < num_sols; ++i) {
         V3D t;
-        stage_2_solver_translation_2pt(homogeneous(point_matches[0].first),
-                                       homogeneous(point_matches[0].second),
-                                       homogeneous(point_matches[1].first),
-                                       homogeneous(point_matches[1].second),
+        stage_2_solver_translation_2pt(homogeneous(junction_matches[0].first.point()),
+                                       homogeneous(junction_matches[0].second.point()),
+                                       homogeneous(junction_matches[1].first.point()),
+                                       homogeneous(junction_matches[1].second.point()),
                                        Rs[i], t);
         (*res)[i] = std::make_pair(Rs[i], t);
     }
@@ -28,7 +28,7 @@ int RelativePoseSolver2vp2pt::MinimalSolver(const std::vector<VPMatch>& vp_match
 
 int RelativePoseSolver2vp2pt::MinimalSolverWrapper(const std::vector<LineMatch>& line_matches,
                                                 const std::vector<VPMatch>& vp_matches,
-                                                const std::vector<PointMatch>& junction_matches,
+                                                const std::vector<JunctionMatch>& junction_matches,
                                                 std::vector<ResultType>* res) const 
 {
     THROW_CHECK_EQ(line_matches.size(), 0);

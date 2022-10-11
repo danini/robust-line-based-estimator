@@ -15,13 +15,13 @@ public:
 
     int MinimalSolverWrapper(const std::vector<LineMatch>& line_matches, 
                              const std::vector<VPMatch>& vp_matches,
-                             const std::vector<PointMatch>& junction_matches,
+                             const std::vector<JunctionMatch>& junction_matches,
                              std::vector<ResultType>* res) const override;
 
     // return a set of homography from image 1 to image 2.
     virtual int HomographySolver(const std::vector<LineMatch>& line_matches, 
                                  const std::vector<VPMatch>& vp_matches,
-                                 const std::vector<PointMatch>& junction_matches,
+                                 const std::vector<JunctionMatch>& junction_matches,
                                  std::vector<M3D>* Hs) const = 0;
 
 protected:

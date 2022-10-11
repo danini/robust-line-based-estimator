@@ -21,7 +21,10 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from functions import verify_pyprogressivex, sg_matching, find_homography_points, find_relative_pose_from_points
 from robust_line_based_estimator.hybrid_relative_pose import run_hybrid_relative_pose
 from robust_line_based_estimator.line_junction_utils import append_h5, read_h5
-from robust_line_based_estimator.point_based_relative_pose import run_point_based_relative_pose
+# from robust_line_based_estimator.point_based_relative_pose import run_point_based_relative_pose
+
+sys.path.append("build/robust_line_based_estimator")
+import line_relative_pose_estimators as _estimators
 
 ###########################################
 # Hyperparameters to be tuned
@@ -34,12 +37,12 @@ TH_PIXEL = 1.0
 SOLVER_FLAGS = [True, True, True, True]
 RUN_POINT_BASED = [0] # 0 - SuperPoint+SuperGlue; 1 - junctions; 2 - both
 RUN_LINE_BASED = []
-OUTPUT_DB_PATH = "scannet_matches.h5" 
+OUTPUT_DB_PATH = "scannet_matches.h5"
 
 ###########################################
 # Initialize the dataset
 ###########################################
-dataset = ScanNet(root_dir=os.path.expanduser("/media/hdd3tb/datasets/scannet/scannet_lines_project/ScanNet_test"), split='test')
+dataset = ScanNet(root_dir=os.path.expanduser("~/data/ScanNet_relative_pose"), split='test')
 dataloader = dataset.get_dataloader()
 
 ###########################################
@@ -77,10 +80,10 @@ elif matcher_type == "superglue_endpoints":
     conf = {
         'sg_params': {
             'weights': 'indoor'
-        } 
+        }
     }
     line_matcher = LineMatcher(line_detector=line_method, line_matcher='superglue_endpoints', conf=conf)
-    
+
 
 ###########################################
 # Relative pose estimation
@@ -104,23 +107,23 @@ for data in tqdm(dataloader):
     start_time = time.time()
     m_lines1 = read_h5(f"{label}-1", OUTPUT_DB_PATH)
     m_lines2 = read_h5(f"{label}-2", OUTPUT_DB_PATH)
-    
-    if m_lines1 is None or m_lines2 is None:    
+
+    if m_lines1 is None or m_lines2 is None:
         # Detect lines in the images
         line_feat1 = line_matcher.detect_and_describe_lines(gray_img1)
         line_feat2 = line_matcher.detect_and_describe_lines(gray_img2)
         elapsed_time = time.time() - start_time
         print(f"Line detection detection time = {elapsed_time * 1000:.2f} ms")
-        
+
         # Match lines in the images
         start_time = time.time()
         _, m_lines1, m_lines2 = line_matcher.match_lines(gray_img1, gray_img2, line_feat1, line_feat2)
         elapsed_time = time.time() - start_time
         print(f"Line matching detection time = {elapsed_time * 1000:.2f} ms")
-        
+
         # Saving to the database
         append_h5({f"{label}-1": m_lines1,
-            f"{label}-2": m_lines2}, OUTPUT_DB_PATH)  
+            f"{label}-2": m_lines2}, OUTPUT_DB_PATH)
     else:
         elapsed_time = time.time() - start_time
         print(f"Line detection/matching detection time = {elapsed_time * 1000:.2f} ms")
@@ -132,7 +135,7 @@ for data in tqdm(dataloader):
     m_label2 = read_h5(f"{label}-vpl2", OUTPUT_DB_PATH)
     m_lines1_inl = m_lines1[:, :, [1, 0]]
     m_lines2_inl = m_lines2[:, :, [1, 0]]
-    
+
     start_time = time.time()
     if m_vp1 is None or m_vp2 is None or m_label1 is None or m_label2 is None:
         # Detect vanishing points in the source image
@@ -141,15 +144,15 @@ for data in tqdm(dataloader):
         vp2, vp_label2 = verify_pyprogressivex(gray_img2, m_lines2_inl, threshold=1.5)
         # Matching the vanishing points
         m_vp1, m_label1, m_vp2, m_label2 = vp_matching(vp1, vp_label1, vp2, vp_label2)
-        
+
         # Saving to the database
         append_h5({f"{label}-vp1": m_vp1,
             f"{label}-vp2": m_vp2,
             f"{label}-vpl1": m_label1,
-            f"{label}-vpl2": m_label2}, OUTPUT_DB_PATH)  
+            f"{label}-vpl2": m_label2}, OUTPUT_DB_PATH)
         elapsed_time = time.time() - start_time
     print(f"VP detection time = {elapsed_time * 1000:.2f} ms")
-    
+
     # Try loading the SuperPoint + SuperGlue matches from the database file
     start_time = time.time()
     point_matches = read_h5(f"sp-sg-{label1}-{label2}", OUTPUT_DB_PATH)
@@ -157,17 +160,23 @@ for data in tqdm(dataloader):
         # Detect keypoints by SuperPoint + SuperGlue
         point_matches, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
         # Saving to the database
-        append_h5({f"sp-sg-{label1}-{label2}": point_matches}, OUTPUT_DB_PATH)  
+        append_h5({f"sp-sg-{label1}-{label2}": point_matches}, OUTPUT_DB_PATH)
     elapsed_time = time.time() - start_time
-    print(f"SP+SG time = {elapsed_time * 1000:.2f} ms") 
-               
+    print(f"SP+SG time = {elapsed_time * 1000:.2f} ms")
+
     # Evaluate the relative pose
-    # TODO: compute the relative pose from VP and homography association
+    # [Note] First construct those junction instances!!
+    junctions_1, junctions_2 = [], []
+    for idx in range(point_matches.shape[0]):
+        junctions_1.append(_estimators.Junction2d(point_matches[idx][:2]))
+        junctions_2.append(_estimators.Junction2d(point_matches[idx][2:]))
+    import pdb
+    pdb.set_trace()
     # pred_R_1_2, pred_T_1_2, pts1_inl, pts2_inl = find_relative_pose_from_points(mkpts, K1, K2)
     pred_R_1_2, pred_T_1_2 = run_hybrid_relative_pose(K1, K2,
                                                       [m_lines1_inl.reshape(m_lines1_inl.shape[0], -1).transpose(), m_lines2_inl.reshape(m_lines2_inl.shape[0], -1).transpose()],
                                                       [m_vp1.transpose(), m_vp2.transpose()],
-                                                      [point_matches[:,:2].transpose(), point_matches[:,2:4].transpose()],
+                                                      [junctions_1, junctions_2],
                                                       [m_label1, m_label2],
                                                       th_pixel=TH_PIXEL,
                                                       solver_flags=SOLVER_FLAGS)

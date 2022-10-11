@@ -17,11 +17,11 @@ public:
 
     int MinimalSolverWrapper(const std::vector<LineMatch>& line_matches, 
                              const std::vector<VPMatch>& vp_matches,
-                             const std::vector<PointMatch>& junction_matches,
+                             const std::vector<JunctionMatch>& junction_matches,
                              std::vector<ResultType>* res) const override;
 
 protected:
-    int MinimalSolver(const std::vector<PointMatch>& point_matches,
+    int MinimalSolver(const std::vector<JunctionMatch>& junction_matches,
                       std::vector<ResultType>* res) const;
 };
 

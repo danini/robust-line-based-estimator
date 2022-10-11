@@ -8,7 +8,7 @@ HybridRelativePoseEstimatorBase::HybridRelativePoseEstimatorBase(
             const M3D& K1, const M3D& K2,
             const std::pair<Eigen::Matrix4Xd, Eigen::Matrix4Xd>& line_matches,
             const std::pair<Eigen::Matrix3Xd, Eigen::Matrix3Xd>& vp_matches,
-            const std::pair<Eigen::Matrix2Xd, Eigen::Matrix2Xd>& junction_matches,
+            const std::pair<std::vector<Junction2d>, std::vector<Junction2d>>& junction_matches,
             const std::pair<std::vector<int>, std::vector<int>>& vp_labels) 
 {
     // initiate calibrations
@@ -34,11 +34,11 @@ HybridRelativePoseEstimatorBase::HybridRelativePoseEstimatorBase(
     }
 
     // initiate junction matches
-    THROW_CHECK_EQ(junction_matches.first.cols(), junction_matches.second.cols());
-    int num_m_junctions = junction_matches.first.cols();
+    THROW_CHECK_EQ(junction_matches.first.size(), junction_matches.second.size());
+    int num_m_junctions = junction_matches.first.size();
     for (size_t i = 0; i < num_m_junctions; ++i) {
-        V2D p1 = junction_matches.first.col(i);
-        V2D p2 = junction_matches.second.col(i);
+        Junction2d p1 = junction_matches.first[i];
+        Junction2d p2 = junction_matches.second[i];
         m_junctions_.push_back(std::make_pair(p1, p2));
     }
 
@@ -86,8 +86,8 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& m
         return 0.0;
     }
     THROW_CHECK_EQ(t, 2);
-    V2D p1 = m_junctions_[i].first;
-    V2D p2 = m_junctions_[i].second;
+    V2D p1 = m_junctions_[i].first.point();
+    V2D p2 = m_junctions_[i].second.point();
 
     // fundamental matrix
     M3D R = model.first;
@@ -110,9 +110,9 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& m
 }
 
 void HybridRelativePoseEstimatorBase::LeastSquares(const std::vector<std::vector<int>>& sample, ResultType* res) const {
-    std::vector<PointMatch> junction_matches;
+    std::vector<JunctionMatch> junction_matches;
     for (size_t i = 0; i < sample[2].size(); ++i) {
-        junction_matches.push_back(normalize_point_match(m_junctions_[sample[2][i]]));
+        junction_matches.push_back(normalize_junction_match(m_junctions_[sample[2][i]]));
     } 
     LeastSquares_Sampson(junction_matches, res);
 }
