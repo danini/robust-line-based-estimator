@@ -23,10 +23,10 @@ int RelativePoseSolver5pt::MinimalSolver(const std::vector<JunctionMatch>& junct
         M3D Rs[4]; V3D ts[4];
         int num_decomposed = decompose_essential(Es[i], Rs, ts);
         THROW_CHECK_EQ(num_decomposed, 4);
-        (*res)[4*i] = std::make_pair(Rs[0], ts[0]);
-        (*res)[4*i + 1] = std::make_pair(Rs[1], ts[1]);
-        (*res)[4*i + 2] = std::make_pair(Rs[2], ts[2]);
-        (*res)[4*i + 3] = std::make_pair(Rs[3], ts[3]);
+        (*res)[4*i] = std::make_tuple(Rs[0], ts[0], Es[i]);
+        (*res)[4*i + 1] = std::make_tuple(Rs[1], ts[1], Es[i]);
+        (*res)[4*i + 2] = std::make_tuple(Rs[2], ts[2], Es[i]);
+        (*res)[4*i + 3] = std::make_tuple(Rs[3], ts[3], Es[i]);
     }
     return res->size();
 }

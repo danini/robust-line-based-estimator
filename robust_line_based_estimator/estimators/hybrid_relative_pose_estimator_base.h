@@ -20,7 +20,7 @@ public:
                                     const std::pair<std::vector<Junction2d>, std::vector<Junction2d>>& junction_matches,
                                     const std::pair<std::vector<int>, std::vector<int>>& vp_labels);
 
-    using ResultType = std::pair<M3D, V3D>;
+    using ResultType = std::tuple<M3D, V3D, M3D>;
 
     inline int num_data_types() const { return 3; }
 
@@ -57,9 +57,12 @@ protected:
     M3D K1_inv_, K2_inv_;
 
     // normalized data
-    std::vector<LineMatch> m_lines_;
-    std::vector<VPMatch> m_vps_;
-    std::vector<JunctionMatch> m_junctions_;
+    std::vector<LineMatch> m_lines_,
+        m_norm_lines_;
+    std::vector<VPMatch> m_vps_,
+        m_norm_vps_;
+    std::vector<JunctionMatch> m_junctions_,
+        m_norm_junctions_;
 
     // used for advanced sampling
     std::vector<int> vp_labels_img1_;
@@ -76,9 +79,19 @@ protected:
     inline LineMatch normalize_line_match(const LineMatch& line_match) const { return std::make_pair(normalize_line(line_match.first, K1_inv_), normalize_line(line_match.second, K2_inv_)); }
     inline VPMatch normalize_vp_match(const VPMatch& vp_match) const { return std::make_pair(normalize_vp(vp_match.first, K1_inv_), normalize_vp(vp_match.second, K2_inv_)); }
     inline JunctionMatch normalize_junction_match(const JunctionMatch& junction_match) const { return std::make_pair(normalize_junction(junction_match.first, K1_inv_), normalize_junction(junction_match.second, K2_inv_)); }
+    inline M3D essential_from_rel_pose(const M3D &R, const V3D &T) const;
 
     bool check_cheirality(const V2D& p1, const V2D& p2, const M3D& R, const V3D& T) const;
 };
+
+inline M3D HybridRelativePoseEstimatorBase::essential_from_rel_pose(const M3D &R, const V3D &T) const
+{    
+    M3D tskew;
+    tskew(0, 0) = 0.0; tskew(0, 1) = -T(2); tskew(0, 2) = T(1);
+    tskew(1, 0) = T(2); tskew(1, 1) = 0.0; tskew(1, 2) = -T(0);
+    tskew(2, 0) = -T(1); tskew(2, 1) = T(0); tskew(2, 2) = 0.0;
+    return tskew * R;
+}
 
 inline Junction2d HybridRelativePoseEstimatorBase::normalize_junction(const Junction2d& junc, const M3D& K_inv) const {
     if (junc.IsJunction())

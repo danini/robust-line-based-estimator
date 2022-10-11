@@ -14,7 +14,7 @@ int RelativePoseSolverHomography::DecomposeHomography(const std::vector<M3D>& Hs
             V3D ts[4];
             decompose_essential(Es[j], Rs, ts);
             for (size_t k = 0; k < 4; ++k) {
-                res->push_back(std::make_pair(Rs[k], ts[k]));
+                res->push_back(std::make_tuple(Rs[k], ts[k], Es[j]));
             }
         }
     }

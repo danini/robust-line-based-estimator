@@ -6,7 +6,7 @@
 
 namespace line_relative_pose {
 
-void LeastSquares_Sampson(const std::vector<JunctionMatch>& junction_matches, std::pair<M3D, V3D>* res) 
+void LeastSquares_Sampson(const std::vector<JunctionMatch>& junction_matches, std::tuple<M3D, V3D, M3D>* res) 
 {
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::DENSE_QR;
@@ -16,8 +16,8 @@ void LeastSquares_Sampson(const std::vector<JunctionMatch>& junction_matches, st
     ceres::Solver::Summary summary;
 
     // Set up problem
-    V4D qvec = RotationMatrixToQuaternion(res->first);
-    V3D tvec = res->second;
+    V4D qvec = RotationMatrixToQuaternion(std::get<0>(*res));
+    V3D tvec = std::get<1>(*res);
     ceres::Problem problem;
     for (auto it = junction_matches.begin(); it != junction_matches.end(); ++it) {
         V3D p1 = homogeneous(it->first.point());
@@ -36,8 +36,8 @@ void LeastSquares_Sampson(const std::vector<JunctionMatch>& junction_matches, st
 
     // Solve the optimization problem
     ceres::Solve(options, &problem, &summary);
-    res->first = QuaternionToRotationMatrix(qvec);
-    res->second = tvec;
+    std::get<0>(*res) = QuaternionToRotationMatrix(qvec);
+    std::get<1>(*res) = tvec;
 }
 
 } // namespace line_relative_pose 

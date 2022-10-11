@@ -15,7 +15,7 @@
 namespace line_relative_pose {
 
 void LeastSquares_Sampson(
-    const std::vector<JunctionMatch>& junction_matches, std::pair<M3D, V3D>* res);
+    const std::vector<JunctionMatch>& junction_matches, std::tuple<M3D, V3D, M3D>* res);
 
 } // namespace line_relative_pose 
 

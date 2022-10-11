@@ -42,18 +42,21 @@ public:
         // get data
         std::vector<LineMatch> line_matches;
         for (size_t i = 0; i < sample[0].size(); ++i) {
-            line_matches.push_back(normalize_line_match(m_lines_[sample[0][i]]));
+            line_matches.push_back(m_norm_lines_[sample[0][i]]);
         }
         std::vector<VPMatch> vp_matches;
         for (size_t i = 0; i < sample[1].size(); ++i) {
-            vp_matches.push_back(normalize_vp_match(m_vps_[sample[1][i]]));
+            vp_matches.push_back(m_norm_vps_[sample[1][i]]);
         }
         std::vector<JunctionMatch> junction_matches;
         for (size_t i = 0; i < sample[2].size(); ++i) {
-            junction_matches.push_back(normalize_junction_match(m_junctions_[sample[2][i]]));
+            junction_matches.push_back(m_norm_junctions_[sample[2][i]]);
         }
 
-        return solvers_[solver_idx]->MinimalSolverWrapper(line_matches, vp_matches, junction_matches, res);
+        int num_solutions = solvers_[solver_idx]->MinimalSolverWrapper(line_matches, vp_matches, junction_matches, res);
+        for (auto &[R, t, E] : *res)
+            E = essential_from_rel_pose(R, t);
+        return num_solutions;
     }
 
 protected:

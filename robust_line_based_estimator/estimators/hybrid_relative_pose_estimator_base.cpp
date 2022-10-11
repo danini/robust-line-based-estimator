@@ -1,6 +1,7 @@
 #include "estimators/hybrid_relative_pose_estimator_base.h"
 #include "refinement/ls_sampson.h"
 #include <iostream>
+#include <chrono>
 
 namespace line_relative_pose {
 
@@ -22,6 +23,7 @@ HybridRelativePoseEstimatorBase::HybridRelativePoseEstimatorBase(
         limap::Line2d line1 = limap::Line2d(Eigen::Vector4d(line_matches.first.col(i)));
         limap::Line2d line2 = limap::Line2d(Eigen::Vector4d(line_matches.second.col(i)));
         m_lines_.push_back(std::make_pair(line1, line2));
+        m_norm_lines_.push_back(normalize_line_match(m_lines_.back()));        
     }
 
     // initiate vp matches
@@ -31,6 +33,7 @@ HybridRelativePoseEstimatorBase::HybridRelativePoseEstimatorBase(
         V3D vp1 = vp_matches.first.col(i);
         V3D vp2 = vp_matches.second.col(i);
         m_vps_.push_back(std::make_pair(vp1, vp2));
+        m_norm_vps_.push_back(normalize_vp_match(m_vps_.back()));
     }
 
     // initiate junction matches
@@ -40,6 +43,7 @@ HybridRelativePoseEstimatorBase::HybridRelativePoseEstimatorBase(
         Junction2d p1 = junction_matches.first[i];
         Junction2d p2 = junction_matches.second[i];
         m_junctions_.push_back(std::make_pair(p1, p2));
+        m_norm_junctions_.push_back(normalize_junction_match(m_junctions_.back()));
     }
 
     // initiate vp labels
@@ -70,13 +74,18 @@ void HybridRelativePoseEstimatorBase::solver_probabilities(std::vector<double>* 
 }
 
 bool HybridRelativePoseEstimatorBase::check_cheirality(const V2D& p1, const V2D& p2, const M3D& R, const V3D& T) const {
-    V3D C1 = V3D::Zero();
-    V3D C2 = - R.transpose() * T;
-    V3D n1e = homogeneous(p1);
-    V3D n2e = R.transpose() * homogeneous(p2);
-    M2D A; A << n1e.dot(n1e), -n1e.dot(n2e), -n2e.dot(n1e), n2e.dot(n2e);
-    V2D b; b(0) = n1e.dot(C2 - C1); b(1) = n2e.dot(C1 - C2);
-    V2D res = A.inverse() * b;
+    V3D C2 = -T.transpose() * R;
+    V3D n1e; n1e << p1(0), p1(1), 1;
+    V3D n2e; n2e << p2(0), p2(1), 1;
+    n2e = n2e.transpose() * R;
+    const double a11 = n1e(0) * n1e(0) + n1e(1) * n1e(1) + n1e(2) * n1e(2),
+        a12_21 = -(n1e(0) * n2e(0) + n1e(1) * n2e(1) + n1e(2) * n2e(2)),
+        a22 = n2e(0) * n2e(0) + n2e(1) * n2e(1) + n2e(2) * n2e(2);
+    M2D A; A << a11, a12_21, a12_21, a22;
+    V2D b; b(0) = n1e.dot(C2); b(1) = n2e.dot(-C2);
+    M2D Ainv; Ainv << A(1,1), -A(0,1), -A(1,0), A(0,0);
+    Ainv *= 1.0 / (A(0,0) * A(1,1) - A(0,1) * A(1,0));
+    V2D res = Ainv * b;
     return res[0] > 0.0 && res[1] > 0.0;
 }
 
@@ -86,35 +95,55 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& m
         return 0.0;
     }
     THROW_CHECK_EQ(t, 2);
-    V2D p1 = m_junctions_[i].first.point();
-    V2D p2 = m_junctions_[i].second.point();
+
+    const V2D &p1 = m_norm_junctions_[i].first.point();
+    const V2D &p2 = m_norm_junctions_[i].second.point();
 
     // fundamental matrix
-    M3D R = model.first;
-    V3D T = model.second;
+    const M3D &R = std::get<0>(model); 
+    const V3D &T = std::get<1>(model); 
     if (!check_cheirality(p1, p2, R, T))
         return std::numeric_limits<double>::max();
 
-    // epipolar distance
-    // TODO: test sampson distance
-    // TODO: we shouldnt compute the fundamental matrix again and again
-    M3D tskew;
-    tskew(0, 0) = 0.0; tskew(0, 1) = -T(2); tskew(0, 2) = T(1);
-    tskew(1, 0) = T(2); tskew(1, 1) = 0.0; tskew(1, 2) = -T(0);
-    tskew(2, 0) = -T(1); tskew(2, 1) = T(0); tskew(2, 2) = 0.0;
-    M3D E = tskew * R;
-    M3D F = K2_inv_.transpose() * E * K1_inv_;
-    V3D coor_epline1to2 = (F * homogeneous(p1)).normalized();
-    double dist = std::abs(homogeneous(p2).dot(coor_epline1to2)) / V2D(coor_epline1to2(0), coor_epline1to2(1)).norm();
-    return dist;
+    const M3D &E = std::get<2>(model);
+
+    const double 
+        &x1 = p1(0),
+        &y1 = p1(1),
+        &x2 = p2(0),
+        &y2 = p2(1);
+
+    const double 
+        &e11 = E(0, 0),
+        &e12 = E(0, 1),
+        &e13 = E(0, 2),
+        &e21 = E(1, 0),
+        &e22 = E(1, 1),
+        &e23 = E(1, 2),
+        &e31 = E(2, 0),
+        &e32 = E(2, 1),
+        &e33 = E(2, 2);
+
+    double rxc = e11 * x2 + e21 * y2 + e31;
+    double ryc = e12 * x2 + e22 * y2 + e32;
+    double rwc = e13 * x2 + e23 * y2 + e33;
+    double r = (x1 * rxc + y1 * ryc + rwc);
+    double rx = e11 * x1 + e12 * y1 + e13;
+    double ry = e21 * x1 + e22 * y1 + e23;
+
+    return sqrt(r * r /
+        (rxc * rxc + ryc * ryc + rx * rx + ry * ry));
 }
 
 void HybridRelativePoseEstimatorBase::LeastSquares(const std::vector<std::vector<int>>& sample, ResultType* res) const {
     std::vector<JunctionMatch> junction_matches;
     for (size_t i = 0; i < sample[2].size(); ++i) {
-        junction_matches.push_back(normalize_junction_match(m_junctions_[sample[2][i]]));
+        junction_matches.push_back(m_norm_junctions_[sample[2][i]]);
     } 
     LeastSquares_Sampson(junction_matches, res);
+    std::get<2>(*res) = essential_from_rel_pose(
+        std::get<0>(*res), 
+        std::get<1>(*res));
 }
 
 } // namespace line_relative_pose

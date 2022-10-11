@@ -21,7 +21,7 @@ int RelativePoseSolver1vp3pt::MinimalSolver(const std::vector<VPMatch>& vp_match
     int num_sols = solver_wrapper_1vp_3pt(vp, vq, pts, qts, Rs, ts);
     res->resize(num_sols);
     for (size_t i = 0; i < num_sols; ++i) {
-        (*res)[i] = std::make_pair(Rs[i], ts[i]);
+        (*res)[i] = std::make_tuple(Rs[i], ts[i], M3D());
     }
     return num_sols;
 }

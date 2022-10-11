@@ -21,7 +21,7 @@ int RelativePoseSolver2vp2pt::MinimalSolver(const std::vector<VPMatch>& vp_match
                                        homogeneous(junction_matches[1].first.point()),
                                        homogeneous(junction_matches[1].second.point()),
                                        Rs[i], t);
-        (*res)[i] = std::make_pair(Rs[i], t);
+        (*res)[i] = std::make_tuple(Rs[i], t, M3D());
     }
     return num_sols;
 }

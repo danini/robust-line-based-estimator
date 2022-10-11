@@ -15,7 +15,7 @@ class RelativePoseSolverBase {
 public:
     RelativePoseSolverBase() {}
     ~RelativePoseSolverBase() {}
-    using ResultType = std::pair<M3D, V3D>;
+    using ResultType = std::tuple<M3D, V3D, M3D>;
 
     virtual std::vector<int> min_sample_size() const = 0;
 

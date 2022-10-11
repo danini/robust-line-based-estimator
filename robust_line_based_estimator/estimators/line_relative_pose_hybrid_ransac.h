@@ -39,6 +39,8 @@
 #include <random>
 #include <vector>
 
+#include <chrono>
+
 #include <RansacLib/hybrid_sampling.h>
 #include <RansacLib/utils.h>
 
@@ -60,6 +62,7 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
   int EstimateModel(const HybridLORansacOptions& options,
                     const HybridSolver& solver, Model* best_model,
                     HybridRansacStatistics* statistics) const {
+            
     // Initializes all relevant variables.
     ResetStatistics(statistics);
     HybridRansacStatistics& stats = *statistics;
@@ -79,11 +82,13 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
 
     std::vector<int> num_data;
     solver.num_data(&num_data);
-
+  
+    
     if (!VerifyData(min_sample_sizes, num_data, kNumSolvers, kNumDataTypes,
                     &prior_probabilities)) {
       return 0;
     }
+    
 
     Sampler sampler(options.random_seed_, solver);
 
@@ -110,6 +115,7 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
     for (stats.num_iterations_total = 0u;
          stats.num_iterations_total < max_num_iterations;
          ++stats.num_iterations_total) {
+      
       // As proposed by Lebeda et al., Local Optimization is not executed in
       // the first lo_starting_iterations_ iterations. We thus run LO on the
       // best model found so far once we reach this iteration.
@@ -124,11 +130,13 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
                                         statistics,
                                         &max_num_iterations_per_solver);
       }
+      
 
       const int kSolverType =
           SelectMinimalSolver(solver, prior_probabilities, stats,
                               options.min_num_iterations_, &rng);
 
+      
       if (kSolverType < -1) {
         // Since no solver could be selected, we stop Hybrid RANSAC here.
         break;
@@ -141,7 +149,7 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
       // MinimalSolver returns the number of estimated models.
       const int kNumEstimatedModels =
           solver.MinimalSolver(minimal_sample, kSolverType, &estimated_models);
-
+      
       if (kNumEstimatedModels > 0) {
         // Finds the best model among all estimated models.
         double best_local_score = std::numeric_limits<double>::max();
@@ -150,10 +158,11 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
                                 kNumEstimatedModels, kSqrInlierThresh,
                                 kNumDataTypes, num_data, &best_local_score,
                                 &best_local_model_id);
-
+        
         // Updates the best model found so far.
         if (best_local_score < best_min_model_score ||
             stats.num_iterations_total == options.lo_starting_iterations_) {
+        
           const bool kBestMinModel = best_local_score < best_min_model_score;
 
           if (kBestMinModel) {
@@ -207,6 +216,7 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
       }
     }
 
+    
     // As proposed by Lebeda et al., Local Optimization is not executed in
     // the first lo_starting_iterations_ iterations. If LO-MSAC needs less than
     // lo_starting_iterations_ iterations, we run LO now.
@@ -240,7 +250,6 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
                                         &max_num_iterations_per_solver);
       }
     }
-
     return stats.best_num_inliers;
   }
 
@@ -337,6 +346,8 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
     *score = 0.0;
 
     for (int t = 0; t < num_data_types; ++t) {
+      if (options.data_type_weights_[t] < std::numeric_limits<double>::epsilon())
+        continue;
       for (int i = 0; i < num_data[t]; ++i) {
         double squared_error = solver.EvaluateModelOnPoint(model, t, i);
         *score += ComputeScore(squared_error, squared_inlier_thresholds[t]) *
