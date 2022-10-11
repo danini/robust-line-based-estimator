@@ -4,42 +4,35 @@ import h5py
 import math
 import threading
 
-lock = threading.Lock()
-
 def load_h5(filename):
     '''Loads dictionary from hdf5 file'''
     dict_to_load = {}
     try:
-        lock.acquire()
+        #with self.lock:
         with h5py.File(filename, 'r') as f:
             keys = [key for key in f.keys()]
             for key in keys:
                 dict_to_load[key] = f[key][()]
-        lock.release()
     except:
         print('Cannot find file {}'.format(filename))
-        lock.release()
     return dict_to_load
 
 def append_h5(dict_to_save, filename):
     '''Saves dictionary to HDF5 file'''
 
     with h5py.File(filename, 'a') as f:
-        lock.acquire()
+        #with self.lock:
         for key in dict_to_save:
             f.create_dataset(key, data=dict_to_save[key])
-        lock.release()
 
 def read_h5(key, filename):
     '''Saves dictionary to HDF5 file'''
 
-    with h5py.File(filename, 'a') as f:
-        lock.acquire()
+    with h5py.File(filename, 'r') as f:
+        #with self.lock:
         if key in f.keys():
-            lock.release()
             return np.array(f.get(key))
         else:
-            lock.release()
             return None
 
 def convert_ms_lines(ms_lines):
