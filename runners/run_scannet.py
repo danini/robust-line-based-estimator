@@ -19,20 +19,21 @@ from third_party.SuperGluePretrainedNetwork.models.matching import Matching
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from functions import verify_pyprogressivex, sg_matching, find_homography_points, find_relative_pose_from_points
 from robust_line_based_estimator.hybrid_relative_pose import run_hybrid_relative_pose
-from robust_line_based_estimator.line_junction_utils import append_h5, read_h5
+from robust_line_based_estimator.line_junction_utils import append_h5, read_h5, get_endpoint_correspondences
 from robust_line_based_estimator.point_based_relative_pose import run_point_based_relative_pose
 
 ###########################################
 # Hyperparameters to be tuned
 ###########################################
-TH_PIXEL = 1.0
+TH_PIXEL = 3.0
 # 0 - 5pt
 # 1 - 4line
 # 2 - 1vp + 3pt
 # 3 - 2vp + 2pt
-SOLVER_FLAGS = [True, False, False, False]
+SOLVER_FLAGS = [True, True, True, True]
 RUN_POINT_BASED = [0] # 0 - SuperPoint+SuperGlue; 1 - junctions; 2 - both
 RUN_LINE_BASED = []
+USE_ENDPOINTS = True
 OUTPUT_DB_PATH = "scannet_matches.h5" 
 CORE_NUMBER = 10
 
@@ -126,6 +127,9 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
         elapsed_time = time.time() - start_time
         if CORE_NUMBER < 2:
             print(f"Line detection/matching detection time = {elapsed_time * 1000:.2f} ms")
+            
+    if m_lines1.shape[0] < 2:
+        return np.inf, 0.0        
 
     # Compute and match VPs or load them from the database
     m_vp1 = read_h5(f"{label}-vp1", OUTPUT_DB_PATH)
@@ -164,11 +168,16 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
     elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
         print(f"SP+SG time = {elapsed_time * 1000:.2f} ms") 
+        
+    # Adding the line endpoints as point correspondences
+    if USE_ENDPOINTS:
+        endpoints = get_endpoint_correspondences(m_lines1, m_lines2)
+        point_matches = np.concatenate((point_matches, endpoints), axis=0)
             
     # Evaluate the relative pose
     # TODO: compute the relative pose from VP and homography association
     # pred_R_1_2, pred_T_1_2, pts1_inl, pts2_inl = find_relative_pose_from_points(mkpts, K1, K2)
-    if m_vp1.shape[0] == 0:
+    if len(m_vp1) == 0 or m_vp1.shape[0] == 0:
         return np.inf, 0.0
     start_time = time.time()
     pred_R_1_2, pred_T_1_2 = run_hybrid_relative_pose(K1, K2,
@@ -185,6 +194,8 @@ print("Collecting data...")
 processing_queue = []
 for data in tqdm(dataloader):
     processing_queue.append(data)
+    #if len(processing_queue) >= 100:
+    #    break
 
 print("Running estimators...")
 results = Parallel(n_jobs=min(CORE_NUMBER, len(processing_queue)))(delayed(process_pair)(
