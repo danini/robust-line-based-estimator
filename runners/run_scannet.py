@@ -185,8 +185,6 @@ print("Collecting data...")
 processing_queue = []
 for data in tqdm(dataloader):
     processing_queue.append(data)
-    if len(processing_queue) >= 50:
-        break
 
 print("Running estimators...")
 results = Parallel(n_jobs=min(CORE_NUMBER, len(processing_queue)))(delayed(process_pair)(
@@ -202,7 +200,7 @@ runtimes = [time for error, time in results]
 pose_errors = np.array(pose_errors)
 
 auc = 100 * np.r_[pose_auc(pose_errors, thresholds=[5, 10, 20])]
-print(f"Average run-time: {np.median(pose_errors):.2f}")
-print(f"Median pose error: {1000 * np.mean(runtimes):.2f} ms")
+print(f"Average run-time: {1000 * np.mean(runtimes):.2f} ms")
+print(f"Median pose error: {np.median(pose_errors):.2f}")
 print(f"AUC at 5 / 10 / 20 deg error: {auc[0]:.2f} / {auc[1]:.2f} / {auc[2]:.2f}")
 
