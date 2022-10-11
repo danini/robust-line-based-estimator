@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 import torch
+import time
 
 from robust_line_based_estimator.datasets.scannet import ScanNet
 from robust_line_based_estimator.line_matching.line_matcher import LineMatcher
@@ -19,6 +20,7 @@ from third_party.SuperGluePretrainedNetwork.models.matching import Matching
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from functions import verify_pyprogressivex, sg_matching, find_homography_points, find_relative_pose_from_points
 from robust_line_based_estimator.hybrid_relative_pose import run_hybrid_relative_pose
+from robust_line_based_estimator.line_junction_utils import append_h5, read_h5
 from robust_line_based_estimator.point_based_relative_pose import run_point_based_relative_pose
 
 ###########################################
@@ -30,8 +32,9 @@ TH_PIXEL = 1.0
 # 2 - 1vp + 3pt
 # 3 - 2vp + 2pt
 SOLVER_FLAGS = [True, True, True, True]
-RUN_POINT_BASED = [0, 1, 2] # 0 - SuperPoint+SuperGlue; 1 - junctions; 2 - both
+RUN_POINT_BASED = [0] # 0 - SuperPoint+SuperGlue; 1 - junctions; 2 - both
 RUN_LINE_BASED = []
+OUTPUT_DB_PATH = "scannet_matches.h5" 
 
 ###########################################
 # Initialize the dataset
@@ -49,7 +52,7 @@ config = {
     },
     'superglue': {'weights': 'indoor'}
 }
-device = 'cuda'
+device = 'cpu'
 superglue_matcher = Matching(config).eval().to(device)
 
 ###########################################
@@ -92,37 +95,79 @@ for data in tqdm(dataloader):
     gt_T_1_2 = data["T_1_2"]
     K1 = data["K1"]
     K2 = data["K2"]
+    # Database labels
+    label1 = "-".join(data["id1"].split("/")[-3:])
+    label2 = "-".join(data["id2"].split("/")[-3:])
 
     # Detect, describe and match lines
-    line_feat1 = line_matcher.detect_and_describe_lines(gray_img1)
-    line_feat2 = line_matcher.detect_and_describe_lines(gray_img2)
-    _, m_lines1, m_lines2 = line_matcher.match_lines(gray_img1, gray_img2, line_feat1, line_feat2)
+    label = f"{line_method}-{matcher_type}-{label1}-{label2}"
+    start_time = time.time()
+    m_lines1 = read_h5(f"{label}-1", OUTPUT_DB_PATH)
+    m_lines2 = read_h5(f"{label}-2", OUTPUT_DB_PATH)
+    
+    if m_lines1 is None or m_lines2 is None:    
+        # Detect lines in the images
+        line_feat1 = line_matcher.detect_and_describe_lines(gray_img1)
+        line_feat2 = line_matcher.detect_and_describe_lines(gray_img2)
+        elapsed_time = time.time() - start_time
+        print(f"Line detection detection time = {elapsed_time * 1000:.2f} ms")
+        
+        # Match lines in the images
+        start_time = time.time()
+        _, m_lines1, m_lines2 = line_matcher.match_lines(gray_img1, gray_img2, line_feat1, line_feat2)
+        elapsed_time = time.time() - start_time
+        print(f"Line matching detection time = {elapsed_time * 1000:.2f} ms")
+        
+        # Saving to the database
+        append_h5({f"{label}-1": m_lines1,
+            f"{label}-2": m_lines2}, OUTPUT_DB_PATH)  
+    else:
+        elapsed_time = time.time() - start_time
+        print(f"Line detection/matching detection time = {elapsed_time * 1000:.2f} ms")
 
-    # Compute and match VPs
+    # Compute and match VPs or load them from the database
+    m_vp1 = read_h5(f"{label}-vp1", OUTPUT_DB_PATH)
+    m_vp2 = read_h5(f"{label}-vp2", OUTPUT_DB_PATH)
+    m_label1 = read_h5(f"{label}-vpl1", OUTPUT_DB_PATH)
+    m_label2 = read_h5(f"{label}-vpl2", OUTPUT_DB_PATH)
     m_lines1_inl = m_lines1[:, :, [1, 0]]
-    vp1, label1 = verify_pyprogressivex(gray_img1, m_lines1_inl, threshold=1.5)
     m_lines2_inl = m_lines2[:, :, [1, 0]]
-    vp2, label2 = verify_pyprogressivex(gray_img2, m_lines2_inl, threshold=1.5)
-    m_vp1, m_label1, m_vp2, m_label2 = vp_matching(vp1, label1, vp2, label2)
     
-    # Detect keypoints by SuperPoint + SuperGlue
-    mkpts, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
+    start_time = time.time()
+    if m_vp1 is None or m_vp2 is None or m_label1 is None or m_label2 is None:
+        # Detect vanishing points in the source image
+        vp1, vp_label1 = verify_pyprogressivex(gray_img1, m_lines1_inl, threshold=1.5)
+        # Detect vanishing points in the destination image
+        vp2, vp_label2 = verify_pyprogressivex(gray_img2, m_lines2_inl, threshold=1.5)
+        # Matching the vanishing points
+        m_vp1, m_label1, m_vp2, m_label2 = vp_matching(vp1, vp_label1, vp2, vp_label2)
+        
+        # Saving to the database
+        append_h5({f"{label}-vp1": m_vp1,
+            f"{label}-vp2": m_vp2,
+            f"{label}-vpl1": m_label1,
+            f"{label}-vpl2": m_label2}, OUTPUT_DB_PATH)  
+        elapsed_time = time.time() - start_time
+    print(f"VP detection time = {elapsed_time * 1000:.2f} ms")
     
-    # Run point-based estimators
-    for config in RUN_POINT_BASED:
-        run_point_based_relative_pose(K1, K2, 
-            mkpts,
-            mkpts,
-            TH_PIXEL,
-            config)
-           
+    # Try loading the SuperPoint + SuperGlue matches from the database file
+    start_time = time.time()
+    point_matches = read_h5(f"sp-sg-{label1}-{label2}", OUTPUT_DB_PATH)
+    if point_matches is None:
+        # Detect keypoints by SuperPoint + SuperGlue
+        point_matches, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
+        # Saving to the database
+        append_h5({f"sp-sg-{label1}-{label2}": point_matches}, OUTPUT_DB_PATH)  
+    elapsed_time = time.time() - start_time
+    print(f"SP+SG time = {elapsed_time * 1000:.2f} ms") 
+               
     # Evaluate the relative pose
     # TODO: compute the relative pose from VP and homography association
     # pred_R_1_2, pred_T_1_2, pts1_inl, pts2_inl = find_relative_pose_from_points(mkpts, K1, K2)
     pred_R_1_2, pred_T_1_2 = run_hybrid_relative_pose(K1, K2,
                                                       [m_lines1_inl.reshape(m_lines1_inl.shape[0], -1).transpose(), m_lines2_inl.reshape(m_lines2_inl.shape[0], -1).transpose()],
                                                       [m_vp1.transpose(), m_vp2.transpose()],
-                                                      [mkpts[:,:2].transpose(), mkpts[:,2:4].transpose()],
+                                                      [point_matches[:,:2].transpose(), point_matches[:,2:4].transpose()],
                                                       [m_label1, m_label2],
                                                       th_pixel=TH_PIXEL,
                                                       solver_flags=SOLVER_FLAGS)
