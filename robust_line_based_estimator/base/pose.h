@@ -4,7 +4,7 @@
 #include <Eigen/Core>
 #include <limits>
 
-namespace uncalibrated_vp {
+namespace line_relative_pose {
 
 /////////////////////////////////////////////
 // From COLMAP
@@ -31,7 +31,7 @@ Eigen::Matrix3d QuaternionToRotationMatrix(const Eigen::Vector4d& qvec);
 // @return              Unit Quaternion rotation coefficients (w, x, y, z).
 Eigen::Vector4d NormalizeQuaternion(const Eigen::Vector4d& qvec);
 
-} // namespace uncalibrated_vp 
+} // namespace line_relative_pose 
 
 #endif
 

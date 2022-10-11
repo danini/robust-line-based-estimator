@@ -1,4 +1,5 @@
 #include "estimators/hybrid_relative_pose_estimator_base.h"
+#include "refinement/ls_sampson.h"
 #include <iostream>
 
 namespace line_relative_pose {
@@ -68,35 +69,52 @@ void HybridRelativePoseEstimatorBase::solver_probabilities(std::vector<double>* 
     *solver_probabilities = probs;
 }
 
+bool HybridRelativePoseEstimatorBase::check_cheirality(const V2D& p1, const V2D& p2, const M3D& R, const V3D& T) const {
+    V3D C1 = V3D::Zero();
+    V3D C2 = - R.transpose() * T;
+    V3D n1e = homogeneous(p1);
+    V3D n2e = R.transpose() * homogeneous(p2);
+    M2D A; A << n1e.dot(n1e), -n1e.dot(n2e), -n2e.dot(n1e), n2e.dot(n2e);
+    V2D b; b(0) = n1e.dot(C2 - C1); b(1) = n2e.dot(C1 - C2);
+    V2D res = A.inverse() * b;
+    return res[0] > 0.0 && res[1] > 0.0;
+}
+
 double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& model, int t, int i) const {
-    // lines and vps do not contribute on the inlier counting
+    // Now that all lines and vps are considered to be inliers
     if (t == 0 || t == 1) {
-        return std::numeric_limits<double>::max();
+        return 0.0;
     }
     THROW_CHECK_EQ(t, 2);
+    V2D p1 = m_junctions_[i].first;
+    V2D p2 = m_junctions_[i].second;
 
     // fundamental matrix
-    // TODO: we shouldnt compute this again and again
     M3D R = model.first;
     V3D T = model.second;
+    if (!check_cheirality(p1, p2, R, T))
+        return std::numeric_limits<double>::max();
+
+    // epipolar distance
+    // TODO: test sampson distance
+    // TODO: we shouldnt compute the fundamental matrix again and again
     M3D tskew;
     tskew(0, 0) = 0.0; tskew(0, 1) = -T(2); tskew(0, 2) = T(1);
     tskew(1, 0) = T(2); tskew(1, 1) = 0.0; tskew(1, 2) = -T(0);
     tskew(2, 0) = -T(1); tskew(2, 1) = T(0); tskew(2, 2) = 0.0;
     M3D E = tskew * R;
     M3D F = K2_inv_.transpose() * E * K1_inv_;
-
-    // epipolar distance
-    V2D p1 = m_junctions_[i].first;
-    V2D p2 = m_junctions_[i].second;
     V3D coor_epline1to2 = (F * homogeneous(p1)).normalized();
     double dist = std::abs(homogeneous(p2).dot(coor_epline1to2)) / V2D(coor_epline1to2(0), coor_epline1to2(1)).norm();
     return dist;
 }
 
 void HybridRelativePoseEstimatorBase::LeastSquares(const std::vector<std::vector<int>>& sample, ResultType* res) const {
-    // TODO
-    return;
+    std::vector<PointMatch> junction_matches;
+    for (size_t i = 0; i < sample[2].size(); ++i) {
+        junction_matches.push_back(normalize_point_match(m_junctions_[sample[2][i]]));
+    } 
+    LeastSquares_Sampson(junction_matches, res);
 }
 
 } // namespace line_relative_pose

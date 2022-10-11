@@ -2,7 +2,7 @@
 
 #include <Eigen/Geometry>
 
-namespace uncalibrated_vp {
+namespace line_relative_pose {
 
 // From COLMAP
 // [LINK] https://github.com/colmap/colmap/blob/dev/src/base/pose.cc#L70
@@ -29,5 +29,5 @@ Eigen::Vector4d NormalizeQuaternion(const Eigen::Vector4d& qvec) {
   }
 }
 
-} // namespace uncalibrated_vp 
+} // namespace line_relative_pose 
 
