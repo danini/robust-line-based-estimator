@@ -10,12 +10,12 @@
 #include <Eigen/Geometry>
 
 #include "base/types.h"
-#include "base/linebase.h"
+#include "base/junction.h"
 
 namespace line_relative_pose {
 
 void LeastSquares_Sampson(
-    const std::vector<PointMatch>& junction_matches, std::pair<M3D, V3D>* res);
+    const std::vector<JunctionMatch>& junction_matches, std::pair<M3D, V3D>* res);
 
 } // namespace line_relative_pose 
 

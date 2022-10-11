@@ -10,11 +10,23 @@ namespace py = pybind11;
 #include <RansacLib/hybrid_ransac.h>
 #include <Eigen/Core>
 
+#include "base/junction.h"
 #include "estimators/functions.h"
 
 void bind_estimators(py::module& m) {
     using namespace line_relative_pose;
     m.def("run_hybrid_relative_pose", &run_hybrid_relative_pose);
+}
+
+void bind_junction(py::module& m) {
+    using namespace line_relative_pose;
+    py::class_<Junction2d>(m, "Junction2d")
+        .def(py::init<>())
+        .def(py::init<const V4D&, const V4D&>())
+        .def(py::init<const V2D&>())
+        .def("point", &Junction2d::point)
+        .def("line1", &Junction2d::line1)
+        .def("line2", &Junction2d::line2);
 }
 
 void bind_ransaclib(py::module& m) {
@@ -83,6 +95,7 @@ void bind_ransaclib(py::module& m) {
 PYBIND11_MODULE(line_relative_pose_estimators, m){
     m.doc() = "pybind11 for line-based relative pose estimation";
     bind_ransaclib(m);
+    bind_junction(m);
     bind_estimators(m);
 }
 

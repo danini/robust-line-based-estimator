@@ -20,7 +20,6 @@ inline V2D dehomogeneous(const V3D& v3d) { return V2D(v3d(0) / (v3d(2) + EPS), v
 
 typedef std::pair<limap::Line2d, limap::Line2d> LineMatch;
 typedef std::pair<V3D, V3D> VPMatch;
-typedef std::pair<V2D, V2D> PointMatch;
 
 } // namespace line_relative_pose 
 

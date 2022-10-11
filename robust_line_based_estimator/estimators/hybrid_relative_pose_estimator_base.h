@@ -2,6 +2,7 @@
 #define LINE_RELATIVE_POSE_ESTIMATORS_HYBRID_RELATIVE_POSE_ESTIMATOR_BASE_H_ 
 
 #include "base/types.h"
+#include "base/junction.h"
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -16,7 +17,7 @@ public:
     HybridRelativePoseEstimatorBase(const M3D& K1, const M3D& K2,
                                     const std::pair<Eigen::Matrix4Xd, Eigen::Matrix4Xd>& line_matches,
                                     const std::pair<Eigen::Matrix3Xd, Eigen::Matrix3Xd>& vp_matches,
-                                    const std::pair<Eigen::Matrix2Xd, Eigen::Matrix2Xd>& junction_matches,
+                                    const std::pair<std::vector<Junction2d>, std::vector<Junction2d>>& junction_matches,
                                     const std::pair<std::vector<int>, std::vector<int>>& vp_labels);
 
     using ResultType = std::pair<M3D, V3D>;
@@ -58,7 +59,7 @@ protected:
     // normalized data
     std::vector<LineMatch> m_lines_;
     std::vector<VPMatch> m_vps_;
-    std::vector<PointMatch> m_junctions_;
+    std::vector<JunctionMatch> m_junctions_;
 
     // used for advanced sampling
     std::vector<int> vp_labels_img1_;
@@ -71,12 +72,20 @@ protected:
     inline limap::Line2d normalize_line(const limap::Line2d& line, const M3D& K_inv) const { return limap::Line2d(normalize_point(line.start, K_inv), normalize_point(line.end, K_inv)); }
     inline V3D normalize_vp(const V3D& vp, const M3D& K_inv) const { return (K_inv * vp).normalized(); }
     inline V2D normalize_point(const V2D& p, const M3D& K_inv) const { return dehomogeneous(K_inv * homogeneous(p)); }
+    inline Junction2d normalize_junction(const Junction2d& junc, const M3D& K_inv) const;
     inline LineMatch normalize_line_match(const LineMatch& line_match) const { return std::make_pair(normalize_line(line_match.first, K1_inv_), normalize_line(line_match.second, K2_inv_)); }
     inline VPMatch normalize_vp_match(const VPMatch& vp_match) const { return std::make_pair(normalize_vp(vp_match.first, K1_inv_), normalize_vp(vp_match.second, K2_inv_)); }
-    inline PointMatch normalize_point_match(const PointMatch& point_match) const { return std::make_pair(normalize_point(point_match.first, K1_inv_), normalize_point(point_match.second, K2_inv_)); }
+    inline JunctionMatch normalize_junction_match(const JunctionMatch& junction_match) const { return std::make_pair(normalize_junction(junction_match.first, K1_inv_), normalize_junction(junction_match.second, K2_inv_)); }
 
     bool check_cheirality(const V2D& p1, const V2D& p2, const M3D& R, const V3D& T) const;
 };
+
+inline Junction2d HybridRelativePoseEstimatorBase::normalize_junction(const Junction2d& junc, const M3D& K_inv) const {
+    if (junc.IsJunction())
+        return Junction2d(normalize_line(junc.line1(), K_inv), normalize_line(junc.line2(), K_inv));
+    else
+        return Junction2d(normalize_point(junc.point(), K_inv));
+}
 
 }  // namespace ransac_lib
 

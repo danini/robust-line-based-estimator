@@ -9,7 +9,7 @@ std::pair<std::pair<M3D, V3D>, ransac_lib::HybridRansacStatistics> run_hybrid_re
         const M3D& K1, const M3D& K2,
         const std::pair<Eigen::Matrix4Xd, Eigen::Matrix4Xd>& line_matches, 
         const std::pair<Eigen::Matrix3Xd, Eigen::Matrix3Xd>& vp_matches, 
-        const std::pair<Eigen::Matrix2Xd, Eigen::Matrix2Xd>& junction_matches, 
+        const std::pair<std::vector<Junction2d>, std::vector<Junction2d>>& junction_matches, 
         const std::pair<std::vector<int>, std::vector<int>> vp_labels,
         const ransac_lib::HybridLORansacOptions& options,
         const std::vector<bool>& solver_flags) 
