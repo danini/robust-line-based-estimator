@@ -39,13 +39,13 @@ SOLVER_FLAGS = [True, False, False, False]
 RUN_LINE_BASED = []
 USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
-OUTPUT_DB_PATH = "scannet_matches.h5" 
-CORE_NUMBER = 10
+OUTPUT_DB_PATH = "scannet_matches.h5"
+CORE_NUMBER = 1
 
 ###########################################
 # Initialize the dataset
 ###########################################
-dataset = ScanNet(root_dir=os.path.expanduser("/media/hdd3tb/datasets/scannet/scannet_lines_project/ScanNet_test"), split='test')
+dataset = ScanNet(root_dir=os.path.expanduser("~/data/ScanNet_relative_pose"), split='test')
 dataloader = dataset.get_dataloader()
 
 ###########################################
@@ -114,7 +114,7 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
         append_h5({f"sp-sg-{label1}-{label2}": point_matches}, OUTPUT_DB_PATH)
     elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
-        print(f"SP+SG time = {elapsed_time * 1000:.2f} ms") 
+        print(f"SP+SG time = {elapsed_time * 1000:.2f} ms")
 
     # Detect, describe and match lines
     label = f"{line_method}-{matcher_type}-{label1}-{label2}"
@@ -144,13 +144,13 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
         elapsed_time = time.time() - start_time
         if CORE_NUMBER < 2:
             print(f"Line detection/matching detection time = {elapsed_time * 1000:.2f} ms")
-            
+
     # Run point-based estimation if no line correspondences are found
     if m_lines1.shape[0] < 2:
         start_time = time.time()
-        R, t = run_point_based_relative_pose(K1, K2, 
+        R, t = run_point_based_relative_pose(K1, K2,
             point_matches,
-            [],
+            np.array([]),
             th_pixel = TH_PIXEL,
             config = 0)
         elapsed_time = time.time() - start_time
@@ -181,29 +181,29 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
         elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
         print(f"VP detection time = {elapsed_time * 1000:.2f} ms")
-        
-    if m_vp1.shape[0] == 0:
+
+    if np.array(m_vp1).shape[0] == 0:
         start_time = time.time()
-        R, t = run_point_based_relative_pose(K1, K2, 
+        R, t = run_point_based_relative_pose(K1, K2,
             point_matches,
-            [],
+            np.array([]),
             th_pixel = TH_PIXEL,
             config = 0)
         elapsed_time = time.time() - start_time
-        return max(evaluate_R_t(gt_R_1_2, gt_T_1_2, R, t)), elapsed_time        
-        
+        return max(evaluate_R_t(gt_R_1_2, gt_T_1_2, R, t)), elapsed_time
+
     # Adding the line endpoints as point correspondences
     if USE_ENDPOINTS:
         endpoints = get_endpoint_correspondences(m_lines1, m_lines2)
         point_matches = np.concatenate((point_matches, endpoints), axis=0)
-            
+
     # Evaluate the relative pose
     # [Note] First construct those junction instances!!
     junctions_1, junctions_2 = [], []
     for idx in range(point_matches.shape[0]):
         junctions_1.append(_estimators.Junction2d(point_matches[idx][:2]))
         junctions_2.append(_estimators.Junction2d(point_matches[idx][2:]))
-        
+
     # Add only those lines that are almost orthogonal
     line_pairs = angular_check(m_lines1, m_lines2, K1, K2, img1, img2)
     for i, j, a1, a2 in line_pairs:
@@ -212,17 +212,17 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
         e1 = abs(a1 - math.pi / 2)
         if a2 > math.pi:
             a2 -= math.pi
-        e2 = abs(a2 - math.pi / 2)  
+        e2 = abs(a2 - math.pi / 2)
         e = max(e1, e2)
-        if e < ANGLE_THRESHOLD:    
+        if e < ANGLE_THRESHOLD:
             line11 = np.reshape(m_lines1[i], (4, 1))
-            line12 = np.reshape(m_lines1[j], (4, 1))            
+            line12 = np.reshape(m_lines1[j], (4, 1))
             line21 = np.reshape(m_lines2[i], (4, 1))
             line22 = np.reshape(m_lines2[j], (4, 1))
-            
+
             junctions_1.append(_estimators.Junction2d(line11, line12))
             junctions_2.append(_estimators.Junction2d(line21, line22))
-            
+
             if len(junctions_1) >= point_matches.shape[0] + MAX_JUNCTIONS:
                 break
 
@@ -236,7 +236,7 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
                                                       solver_flags=SOLVER_FLAGS)
     elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
-        print(f"Estimation time = {elapsed_time * 1000:.2f} ms") 
+        print(f"Estimation time = {elapsed_time * 1000:.2f} ms")
     return max(evaluate_R_t(gt_R_1_2, gt_T_1_2, pred_R_1_2, pred_T_1_2)), elapsed_time
 
 print("Collecting data...")
