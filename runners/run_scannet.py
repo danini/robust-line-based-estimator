@@ -7,6 +7,7 @@ import numpy as np
 from tqdm import tqdm
 import torch
 import time
+import math
 from joblib import Parallel, delayed
 
 from robust_line_based_estimator.datasets.scannet import ScanNet
@@ -19,8 +20,8 @@ from third_party.SuperGluePretrainedNetwork.models.matching import Matching
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from functions import verify_pyprogressivex, sg_matching, find_homography_points, find_relative_pose_from_points
 from robust_line_based_estimator.hybrid_relative_pose import run_hybrid_relative_pose
-from robust_line_based_estimator.line_junction_utils import append_h5, read_h5
-# from robust_line_based_estimator.point_based_relative_pose import run_point_based_relative_pose
+from robust_line_based_estimator.line_junction_utils import append_h5, read_h5, get_endpoint_correspondences, angular_check
+from robust_line_based_estimator.point_based_relative_pose import run_point_based_relative_pose
 
 sys.path.append("build/robust_line_based_estimator")
 import line_relative_pose_estimators as _estimators
@@ -28,14 +29,16 @@ import line_relative_pose_estimators as _estimators
 ###########################################
 # Hyperparameters to be tuned
 ###########################################
-TH_PIXEL = 1.0
+TH_PIXEL = 3.0
+ANGLE_THRESHOLD = math.pi / 16
 # 0 - 5pt
 # 1 - 4line
 # 2 - 1vp + 3pt
 # 3 - 2vp + 2pt
 SOLVER_FLAGS = [True, False, False, False]
-RUN_POINT_BASED = [0] # 0 - SuperPoint+SuperGlue; 1 - junctions; 2 - both
 RUN_LINE_BASED = []
+USE_ENDPOINTS = False
+MAX_JUNCTIONS = 0
 OUTPUT_DB_PATH = "scannet_matches.h5"
 CORE_NUMBER = 1
 
@@ -101,6 +104,18 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
     label1 = "-".join(data["id1"].split("/")[-3:])
     label2 = "-".join(data["id2"].split("/")[-3:])
 
+    # Try loading the SuperPoint + SuperGlue matches from the database file
+    start_time = time.time()
+    point_matches = read_h5(f"sp-sg-{label1}-{label2}", OUTPUT_DB_PATH)
+    if point_matches is None:
+        # Detect keypoints by SuperPoint + SuperGlue
+        point_matches, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
+        # Saving to the database
+        append_h5({f"sp-sg-{label1}-{label2}": point_matches}, OUTPUT_DB_PATH)
+    elapsed_time = time.time() - start_time
+    if CORE_NUMBER < 2:
+        print(f"SP+SG time = {elapsed_time * 1000:.2f} ms")
+
     # Detect, describe and match lines
     label = f"{line_method}-{matcher_type}-{label1}-{label2}"
     start_time = time.time()
@@ -130,6 +145,17 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
         if CORE_NUMBER < 2:
             print(f"Line detection/matching detection time = {elapsed_time * 1000:.2f} ms")
 
+    # Run point-based estimation if no line correspondences are found
+    if m_lines1.shape[0] < 2:
+        start_time = time.time()
+        R, t = run_point_based_relative_pose(K1, K2,
+            point_matches,
+            np.array([]),
+            th_pixel = TH_PIXEL,
+            config = 0)
+        elapsed_time = time.time() - start_time
+        return max(evaluate_R_t(gt_R_1_2, gt_T_1_2, R, t)), elapsed_time
+
     # Compute and match VPs or load them from the database
     m_vp1 = read_h5(f"{label}-vp1", OUTPUT_DB_PATH)
     m_vp2 = read_h5(f"{label}-vp2", OUTPUT_DB_PATH)
@@ -156,17 +182,20 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
     if CORE_NUMBER < 2:
         print(f"VP detection time = {elapsed_time * 1000:.2f} ms")
 
-    # Try loading the SuperPoint + SuperGlue matches from the database file
-    start_time = time.time()
-    point_matches = read_h5(f"sp-sg-{label1}-{label2}", OUTPUT_DB_PATH)
-    if point_matches is None:
-        # Detect keypoints by SuperPoint + SuperGlue
-        point_matches, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
-        # Saving to the database
-        append_h5({f"sp-sg-{label1}-{label2}": point_matches}, OUTPUT_DB_PATH)
-    elapsed_time = time.time() - start_time
-    if CORE_NUMBER < 2:
-        print(f"SP+SG time = {elapsed_time * 1000:.2f} ms")
+    if np.array(m_vp1).shape[0] == 0:
+        start_time = time.time()
+        R, t = run_point_based_relative_pose(K1, K2,
+            point_matches,
+            np.array([]),
+            th_pixel = TH_PIXEL,
+            config = 0)
+        elapsed_time = time.time() - start_time
+        return max(evaluate_R_t(gt_R_1_2, gt_T_1_2, R, t)), elapsed_time
+
+    # Adding the line endpoints as point correspondences
+    if USE_ENDPOINTS:
+        endpoints = get_endpoint_correspondences(m_lines1, m_lines2)
+        point_matches = np.concatenate((point_matches, endpoints), axis=0)
 
     # Evaluate the relative pose
     # [Note] First construct those junction instances!!
@@ -174,9 +203,29 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
     for idx in range(point_matches.shape[0]):
         junctions_1.append(_estimators.Junction2d(point_matches[idx][:2]))
         junctions_2.append(_estimators.Junction2d(point_matches[idx][2:]))
-    # pred_R_1_2, pred_T_1_2, pts1_inl, pts2_inl = find_relative_pose_from_points(mkpts, K1, K2)
-    if np.array(m_vp1).shape[0] == 0:
-        return np.inf, 0.0
+
+    # Add only those lines that are almost orthogonal
+    line_pairs = angular_check(m_lines1, m_lines2, K1, K2, img1, img2)
+    for i, j, a1, a2 in line_pairs:
+        if a1 > math.pi:
+            a1 -= math.pi
+        e1 = abs(a1 - math.pi / 2)
+        if a2 > math.pi:
+            a2 -= math.pi
+        e2 = abs(a2 - math.pi / 2)
+        e = max(e1, e2)
+        if e < ANGLE_THRESHOLD:
+            line11 = np.reshape(m_lines1[i], (4, 1))
+            line12 = np.reshape(m_lines1[j], (4, 1))
+            line21 = np.reshape(m_lines2[i], (4, 1))
+            line22 = np.reshape(m_lines2[j], (4, 1))
+
+            junctions_1.append(_estimators.Junction2d(line11, line12))
+            junctions_2.append(_estimators.Junction2d(line21, line22))
+
+            if len(junctions_1) >= point_matches.shape[0] + MAX_JUNCTIONS:
+                break
+
     start_time = time.time()
     pred_R_1_2, pred_T_1_2 = run_hybrid_relative_pose(K1, K2,
                                                       [m_lines1_inl.reshape(m_lines1_inl.shape[0], -1).transpose(), m_lines2_inl.reshape(m_lines2_inl.shape[0], -1).transpose()],
@@ -186,12 +235,16 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
                                                       th_pixel=TH_PIXEL,
                                                       solver_flags=SOLVER_FLAGS)
     elapsed_time = time.time() - start_time
+    if CORE_NUMBER < 2:
+        print(f"Estimation time = {elapsed_time * 1000:.2f} ms")
     return max(evaluate_R_t(gt_R_1_2, gt_T_1_2, pred_R_1_2, pred_T_1_2)), elapsed_time
 
 print("Collecting data...")
 processing_queue = []
 for data in tqdm(dataloader):
     processing_queue.append(data)
+    #if len(processing_queue) >= 50:
+    #    break
 
 print("Running estimators...")
 results = Parallel(n_jobs=min(CORE_NUMBER, len(processing_queue)))(delayed(process_pair)(
