@@ -30,7 +30,7 @@ import line_relative_pose_estimators as _estimators
 # Hyperparameters to be tuned
 ###########################################
 TH_PIXEL = 3.0
-ANGLE_THRESHOLD = math.pi / 16
+ANGLE_THRESHOLD = math.pi / 32
 # 0 - 5pt
 # 1 - 4line
 # 2 - 1vp + 3pt
@@ -227,7 +227,7 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
                 break
 
     start_time = time.time()
-    pred_R_1_2, pred_T_1_2 = run_hybrid_relative_pose(K1, K2,
+    pred_R_1_2, pred_T_1_2, pred_E_1_2 = run_hybrid_relative_pose(K1, K2,
                                                       [m_lines1_inl.reshape(m_lines1_inl.shape[0], -1).transpose(), m_lines2_inl.reshape(m_lines2_inl.shape[0], -1).transpose()],
                                                       [m_vp1.transpose(), m_vp2.transpose()],
                                                       [junctions_1, junctions_2],
