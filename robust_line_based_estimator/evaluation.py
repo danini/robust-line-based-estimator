@@ -85,6 +85,8 @@ def quaternion_from_matrix(matrix, isprecise=False):
 
 
 def evaluate_R_t(R_gt, t_gt, R, t, q_gt=None):
+    if t is None or R is None:
+        return np.inf, np.inf 
     t = t.flatten()
     t_gt = t_gt.flatten()
 
