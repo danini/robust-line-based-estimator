@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 # ## Relative pose estimation on ScanNet
-
-import pdb
 import os, sys
 import cv2
 import numpy as np
 from tqdm import tqdm
 import torch
 import time
+from joblib import Parallel, delayed
 
 from robust_line_based_estimator.datasets.scannet import ScanNet
 from robust_line_based_estimator.line_matching.line_matcher import LineMatcher
@@ -34,10 +33,11 @@ TH_PIXEL = 1.0
 # 1 - 4line
 # 2 - 1vp + 3pt
 # 3 - 2vp + 2pt
-SOLVER_FLAGS = [True, True, True, True]
+SOLVER_FLAGS = [True, False, False, False]
 RUN_POINT_BASED = [0] # 0 - SuperPoint+SuperGlue; 1 - junctions; 2 - both
 RUN_LINE_BASED = []
 OUTPUT_DB_PATH = "scannet_matches.h5"
+CORE_NUMBER = 10
 
 ###########################################
 # Initialize the dataset
@@ -88,8 +88,7 @@ elif matcher_type == "superglue_endpoints":
 ###########################################
 # Relative pose estimation
 ###########################################
-pose_errors = []
-for data in tqdm(dataloader):
+def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH):
     img1 = data["img1"]
     img2 = data["img2"]
     gray_img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
@@ -113,20 +112,23 @@ for data in tqdm(dataloader):
         line_feat1 = line_matcher.detect_and_describe_lines(gray_img1)
         line_feat2 = line_matcher.detect_and_describe_lines(gray_img2)
         elapsed_time = time.time() - start_time
-        print(f"Line detection detection time = {elapsed_time * 1000:.2f} ms")
+        if CORE_NUMBER < 2:
+            print(f"Line detection detection time = {elapsed_time * 1000:.2f} ms")
 
         # Match lines in the images
         start_time = time.time()
         _, m_lines1, m_lines2 = line_matcher.match_lines(gray_img1, gray_img2, line_feat1, line_feat2)
         elapsed_time = time.time() - start_time
-        print(f"Line matching detection time = {elapsed_time * 1000:.2f} ms")
+        if CORE_NUMBER < 2:
+            print(f"Line matching detection time = {elapsed_time * 1000:.2f} ms")
 
         # Saving to the database
         append_h5({f"{label}-1": m_lines1,
             f"{label}-2": m_lines2}, OUTPUT_DB_PATH)
     else:
         elapsed_time = time.time() - start_time
-        print(f"Line detection/matching detection time = {elapsed_time * 1000:.2f} ms")
+        if CORE_NUMBER < 2:
+            print(f"Line detection/matching detection time = {elapsed_time * 1000:.2f} ms")
 
     # Compute and match VPs or load them from the database
     m_vp1 = read_h5(f"{label}-vp1", OUTPUT_DB_PATH)
@@ -151,7 +153,8 @@ for data in tqdm(dataloader):
             f"{label}-vpl1": m_label1,
             f"{label}-vpl2": m_label2}, OUTPUT_DB_PATH)
         elapsed_time = time.time() - start_time
-    print(f"VP detection time = {elapsed_time * 1000:.2f} ms")
+    if CORE_NUMBER < 2:
+        print(f"VP detection time = {elapsed_time * 1000:.2f} ms")
 
     # Try loading the SuperPoint + SuperGlue matches from the database file
     start_time = time.time()
@@ -162,7 +165,8 @@ for data in tqdm(dataloader):
         # Saving to the database
         append_h5({f"sp-sg-{label1}-{label2}": point_matches}, OUTPUT_DB_PATH)
     elapsed_time = time.time() - start_time
-    print(f"SP+SG time = {elapsed_time * 1000:.2f} ms")
+    if CORE_NUMBER < 2:
+        print(f"SP+SG time = {elapsed_time * 1000:.2f} ms")
 
     # Evaluate the relative pose
     # [Note] First construct those junction instances!!
@@ -170,9 +174,10 @@ for data in tqdm(dataloader):
     for idx in range(point_matches.shape[0]):
         junctions_1.append(_estimators.Junction2d(point_matches[idx][:2]))
         junctions_2.append(_estimators.Junction2d(point_matches[idx][2:]))
-    import pdb
-    pdb.set_trace()
     # pred_R_1_2, pred_T_1_2, pts1_inl, pts2_inl = find_relative_pose_from_points(mkpts, K1, K2)
+    if m_vp1.shape[0] == 0:
+        return np.inf, 0.0
+    start_time = time.time()
     pred_R_1_2, pred_T_1_2 = run_hybrid_relative_pose(K1, K2,
                                                       [m_lines1_inl.reshape(m_lines1_inl.shape[0], -1).transpose(), m_lines2_inl.reshape(m_lines2_inl.shape[0], -1).transpose()],
                                                       [m_vp1.transpose(), m_vp2.transpose()],
@@ -180,12 +185,29 @@ for data in tqdm(dataloader):
                                                       [m_label1, m_label2],
                                                       th_pixel=TH_PIXEL,
                                                       solver_flags=SOLVER_FLAGS)
-    if pred_R_1_2 is None:
-        pose_errors.append(np.inf)
-    else:
-        pose_errors.append(max(evaluate_R_t(gt_R_1_2, gt_T_1_2, pred_R_1_2, pred_T_1_2)))
+    elapsed_time = time.time() - start_time
+    return max(evaluate_R_t(gt_R_1_2, gt_T_1_2, pred_R_1_2, pred_T_1_2)), elapsed_time
+
+print("Collecting data...")
+processing_queue = []
+for data in tqdm(dataloader):
+    processing_queue.append(data)
+
+print("Running estimators...")
+results = Parallel(n_jobs=min(CORE_NUMBER, len(processing_queue)))(delayed(process_pair)(
+    data,
+    line_matcher,
+    superglue_matcher,
+    CORE_NUMBER,
+    OUTPUT_DB_PATH) for data in tqdm(processing_queue))
+
+pose_errors = [error for error, time in results]
+runtimes = [time for error, time in results]
+
+pose_errors = np.array(pose_errors)
 
 auc = 100 * np.r_[pose_auc(pose_errors, thresholds=[5, 10, 20])]
+print(f"Average run-time: {1000 * np.mean(runtimes):.2f} ms")
 print(f"Median pose error: {np.median(pose_errors):.2f}")
 print(f"AUC at 5 / 10 / 20 deg error: {auc[0]:.2f} / {auc[1]:.2f} / {auc[2]:.2f}")
 
