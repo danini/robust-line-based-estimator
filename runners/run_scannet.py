@@ -40,12 +40,13 @@ RUN_LINE_BASED = []
 USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
 OUTPUT_DB_PATH = "scannet_matches.h5"
-CORE_NUMBER = 1
+CORE_NUMBER = 16
+BATCH_SIZE = 100
 
 ###########################################
 # Initialize the dataset
 ###########################################
-dataset = ScanNet(root_dir=os.path.expanduser("~/data/ScanNet_relative_pose"), split='test')
+dataset = ScanNet(root_dir=os.path.expanduser("/media/hdd3tb/datasets/scannet/scannet_lines_project/ScanNet_test"), split='test')
 dataloader = dataset.get_dataloader()
 
 ###########################################
@@ -87,27 +88,24 @@ elif matcher_type == "superglue_endpoints":
     }
     line_matcher = LineMatcher(line_detector=line_method, line_matcher='superglue_endpoints', conf=conf)
 
-
 ###########################################
-# Relative pose estimation
+# Detecting everything before the pose estimation starts
 ###########################################
-def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH):
+def detect_and_load_data(data, line_matcher, CORE_NUMBER):
     img1 = data["img1"]
     img2 = data["img2"]
-    gray_img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
-    gray_img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
-    gt_R_1_2 = data["R_1_2"]
-    gt_T_1_2 = data["T_1_2"]
-    K1 = data["K1"]
-    K2 = data["K2"]
+
     # Database labels
     label1 = "-".join(data["id1"].split("/")[-3:])
     label2 = "-".join(data["id2"].split("/")[-3:])
-
+    
     # Try loading the SuperPoint + SuperGlue matches from the database file
     start_time = time.time()
     point_matches = read_h5(f"sp-sg-{label1}-{label2}", OUTPUT_DB_PATH)
     if point_matches is None:
+        gray_img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
+        gray_img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
+    
         # Detect keypoints by SuperPoint + SuperGlue
         point_matches, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
         # Saving to the database
@@ -144,7 +142,18 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
         elapsed_time = time.time() - start_time
         if CORE_NUMBER < 2:
             print(f"Line detection/matching detection time = {elapsed_time * 1000:.2f} ms")
+    # 
+    return point_matches, m_lines1, m_lines2
 
+###########################################
+# Relative pose estimation
+###########################################
+def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB_PATH):
+    gt_R_1_2 = data["R_1_2"]
+    gt_T_1_2 = data["T_1_2"]
+    K1 = data["K1"]
+    K2 = data["K2"]
+    
     # Run point-based estimation if no line correspondences are found
     if m_lines1.shape[0] < 2:
         start_time = time.time()
@@ -157,28 +166,17 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
         return max(evaluate_R_t(gt_R_1_2, gt_T_1_2, R, t)), elapsed_time
 
     # Compute and match VPs or load them from the database
-    m_vp1 = read_h5(f"{label}-vp1", OUTPUT_DB_PATH)
-    m_vp2 = read_h5(f"{label}-vp2", OUTPUT_DB_PATH)
-    m_label1 = read_h5(f"{label}-vpl1", OUTPUT_DB_PATH)
-    m_label2 = read_h5(f"{label}-vpl2", OUTPUT_DB_PATH)
     m_lines1_inl = m_lines1[:, :, [1, 0]]
     m_lines2_inl = m_lines2[:, :, [1, 0]]
 
     start_time = time.time()
-    if m_vp1 is None or m_vp2 is None or m_label1 is None or m_label2 is None:
-        # Detect vanishing points in the source image
-        vp1, vp_label1 = verify_pyprogressivex(gray_img1, m_lines1_inl, threshold=1.5)
-        # Detect vanishing points in the destination image
-        vp2, vp_label2 = verify_pyprogressivex(gray_img2, m_lines2_inl, threshold=1.5)
-        # Matching the vanishing points
-        m_vp1, m_label1, m_vp2, m_label2 = vp_matching(vp1, vp_label1, vp2, vp_label2)
-
-        # Saving to the database
-        append_h5({f"{label}-vp1": m_vp1,
-            f"{label}-vp2": m_vp2,
-            f"{label}-vpl1": m_label1,
-            f"{label}-vpl2": m_label2}, OUTPUT_DB_PATH)
-        elapsed_time = time.time() - start_time
+    # Detect vanishing points in the source image
+    vp1, vp_label1 = verify_pyprogressivex(int(2 * K1[0,2]), int(2 * K1[1,2]), m_lines1_inl, threshold=1.5)
+    # Detect vanishing points in the destination image
+    vp2, vp_label2 = verify_pyprogressivex(int(2 * K2[0,2]), int(2 * K2[1,2]), m_lines2_inl, threshold=1.5)
+    # Matching the vanishing points
+    m_vp1, m_label1, m_vp2, m_label2 = vp_matching(vp1, vp_label1, vp2, vp_label2)
+    elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
         print(f"VP detection time = {elapsed_time * 1000:.2f} ms")
 
@@ -205,7 +203,7 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
         junctions_2.append(_estimators.Junction2d(point_matches[idx][2:]))
 
     # Add only those lines that are almost orthogonal
-    line_pairs = angular_check(m_lines1, m_lines2, K1, K2, img1, img2)
+    line_pairs = angular_check(m_lines1, m_lines2, K1, K2)
     for i, j, a1, a2 in line_pairs:
         if a1 > math.pi:
             a1 -= math.pi
@@ -239,23 +237,33 @@ def process_pair(data, line_matcher, point_matches, CORE_NUMBER, OUTPUT_DB_PATH)
         print(f"Estimation time = {elapsed_time * 1000:.2f} ms")
     return max(evaluate_R_t(gt_R_1_2, gt_T_1_2, pred_R_1_2, pred_T_1_2)), elapsed_time
 
-print("Collecting data...")
 processing_queue = []
-for data in tqdm(dataloader):
-    processing_queue.append(data)
-    #if len(processing_queue) >= 50:
-    #    break
+pose_errors = []
+runtimes = []
+run_count = 1
+print(f"Collecting data for [{run_count * BATCH_SIZE} / 1500] pairs")
+for data in dataloader:
+    point_matches, m_lines1, m_lines2 = detect_and_load_data(data, line_matcher, CORE_NUMBER)
+    processing_queue.append((data, point_matches, m_lines1, m_lines2))
+    # Running the estimators so we don't have too much things in the memory
+    if len(processing_queue) >= BATCH_SIZE:
+        print(f"Pose estimation...")
+        results = Parallel(n_jobs=min(CORE_NUMBER, len(processing_queue)))(delayed(process_pair)(
+            data,
+            point_matches,
+            m_lines1,
+            m_lines2,
+            CORE_NUMBER,
+            OUTPUT_DB_PATH) for data, point_matches, m_lines1, m_lines2 in tqdm(processing_queue))
 
-print("Running estimators...")
-results = Parallel(n_jobs=min(CORE_NUMBER, len(processing_queue)))(delayed(process_pair)(
-    data,
-    line_matcher,
-    superglue_matcher,
-    CORE_NUMBER,
-    OUTPUT_DB_PATH) for data in tqdm(processing_queue))
-
-pose_errors = [error for error, time in results]
-runtimes = [time for error, time in results]
+        # Concatenating the results to the main lists
+        pose_errors += [error for error, time in results]
+        runtimes += [time for error, time in results]
+        
+        # Clearing the processing queue
+        processing_queue = []
+        run_count += 1
+        print(f"Collecting data for [{run_count * BATCH_SIZE} / 1500] pairs")
 
 pose_errors = np.array(pose_errors)
 
