@@ -55,3 +55,9 @@ unzip ScanNet_test.zip -d <path to extract the ScanNet test set>
 ```
 
 Then run the notebook `examples/relative_pose_evaluation_scannet.ipynb`.
+
+
+## Evaluation on the 7Scenes dataset
+Download the [7Scenes dataset](https://www.microsoft.com/en-us/research/project/rgb-d-dataset-7-scenes/) and put it where it suits you. You can also only download one scene and later specify this scene in the dataloader constructor.
+
+Then run the script `runners/run_7scenes.py`.
