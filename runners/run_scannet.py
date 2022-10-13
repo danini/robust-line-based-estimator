@@ -46,7 +46,7 @@ BATCH_SIZE = 100
 ###########################################
 # Initialize the dataset
 ###########################################
-dataset = ScanNet(root_dir=os.path.expanduser("/media/hdd3tb/datasets/scannet/scannet_lines_project/ScanNet_test"), split='test')
+dataset = ScanNet(root_dir=os.path.expanduser("~/data/ScanNet_relative_pose"), split='test')
 dataloader = dataset.get_dataloader()
 
 ###########################################
@@ -98,14 +98,14 @@ def detect_and_load_data(data, line_matcher, CORE_NUMBER):
     # Database labels
     label1 = "-".join(data["id1"].split("/")[-3:])
     label2 = "-".join(data["id2"].split("/")[-3:])
-    
+
     # Try loading the SuperPoint + SuperGlue matches from the database file
     start_time = time.time()
     point_matches = read_h5(f"sp-sg-{label1}-{label2}", OUTPUT_DB_PATH)
     if point_matches is None:
         gray_img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
         gray_img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
-    
+
         # Detect keypoints by SuperPoint + SuperGlue
         point_matches, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
         # Saving to the database
@@ -142,7 +142,7 @@ def detect_and_load_data(data, line_matcher, CORE_NUMBER):
         elapsed_time = time.time() - start_time
         if CORE_NUMBER < 2:
             print(f"Line detection/matching detection time = {elapsed_time * 1000:.2f} ms")
-    # 
+    #
     return point_matches, m_lines1, m_lines2
 
 ###########################################
@@ -153,7 +153,7 @@ def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB
     gt_T_1_2 = data["T_1_2"]
     K1 = data["K1"]
     K2 = data["K2"]
-    
+
     # Run point-based estimation if no line correspondences are found
     if m_lines1.shape[0] < 2:
         start_time = time.time()
@@ -163,7 +163,7 @@ def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB
             th_pixel = TH_PIXEL,
             config = 0)
         elapsed_time = time.time() - start_time
-        return max(evaluate_R_t(gt_R_1_2, gt_T_1_2, R, t)), elapsed_time
+        return evaluate_R_t(gt_R_1_2, gt_T_1_2, R, t), elapsed_time
 
     # Compute and match VPs or load them from the database
     m_lines1_inl = m_lines1[:, :, [1, 0]]
@@ -188,7 +188,7 @@ def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB
             th_pixel = TH_PIXEL,
             config = 0)
         elapsed_time = time.time() - start_time
-        return max(evaluate_R_t(gt_R_1_2, gt_T_1_2, R, t)), elapsed_time
+        return evaluate_R_t(gt_R_1_2, gt_T_1_2, R, t), elapsed_time
 
     # Adding the line endpoints as point correspondences
     if USE_ENDPOINTS:
@@ -235,7 +235,7 @@ def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB
     elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
         print(f"Estimation time = {elapsed_time * 1000:.2f} ms")
-    return max(evaluate_R_t(gt_R_1_2, gt_T_1_2, pred_R_1_2, pred_T_1_2)), elapsed_time
+    return evaluate_R_t(gt_R_1_2, gt_T_1_2, pred_R_1_2, pred_T_1_2), elapsed_time
 
 processing_queue = []
 pose_errors = []
@@ -259,16 +259,21 @@ for data in dataloader:
         # Concatenating the results to the main lists
         pose_errors += [error for error, time in results]
         runtimes += [time for error, time in results]
-        
+
         # Clearing the processing queue
         processing_queue = []
         run_count += 1
         print(f"Collecting data for [{run_count * BATCH_SIZE} / 1500] pairs")
-
 pose_errors = np.array(pose_errors)
 
-auc = 100 * np.r_[pose_auc(pose_errors, thresholds=[5, 10, 20])]
 print(f"Average run-time: {1000 * np.mean(runtimes):.2f} ms")
-print(f"Median pose error: {np.median(pose_errors):.2f}")
+auc = 100 * np.r_[pose_auc(pose_errors[:,0], thresholds=[5, 10, 20])]
+print(f"Median rotation error: {np.median(pose_errors[:,0]):.2f}")
+print(f"AUC at 5 / 10 / 20 deg error: {auc[0]:.2f} / {auc[1]:.2f} / {auc[2]:.2f}")
+auc = 100 * np.r_[pose_auc(pose_errors[:,1], thresholds=[5, 10, 20])]
+print(f"Median translation error: {np.median(pose_errors[:,1]):.2f}")
+print(f"AUC at 5 / 10 / 20 deg error: {auc[0]:.2f} / {auc[1]:.2f} / {auc[2]:.2f}")
+auc = 100 * np.r_[pose_auc(pose_errors.max(1), thresholds=[5, 10, 20])]
+print(f"Median pose error: {np.median(pose_errors.max(1)):.2f}")
 print(f"AUC at 5 / 10 / 20 deg error: {auc[0]:.2f} / {auc[1]:.2f} / {auc[2]:.2f}")
 
