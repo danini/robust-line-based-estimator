@@ -3,6 +3,7 @@ import cv2
 import torch
 import pyprogressivex
 
+
 def verify_pyprogressivex(img_width, img_height, lines_segments, threshold = 2.0):
     lines = []
     weights = []
@@ -32,6 +33,48 @@ def verify_pyprogressivex(img_width, img_height, lines_segments, threshold = 2.0
         scoring_exponent = 1.0,
         do_logging = False)
     return vanishing_points, labeling
+
+
+def joint_vp_detection_and_matching(img_width, img_height, m_lines0,
+                                    m_lines1, threshold = 2.0):
+    """ m_lines0 and m_lines1 are two sets of matching [N, 2, 2] lines in x-y coordinate convention.
+        Returns a set of matching VPs (of size [N, 3] each) and their line labels.
+    """
+    lines = []
+    weights = []
+    for i in range(len(m_lines0)):
+        l0, l1 = m_lines0[i], m_lines1[i]
+        weights.append((np.linalg.norm(l0[1] - l0[1]) + np.linalg.norm(l1[1] - l1[1])) / 2)
+        lines.append([l0[0, 0], l0[0, 1], l0[1, 0], l0[1, 1], l1[0, 0], l1[0, 1], l1[1, 0], l1[1, 1]])
+
+    lines = np.array(lines)
+    weights = np.array(weights)
+
+    vanishing_points, labeling = pyprogressivex.findCommonVanishingPoints(
+        np.ascontiguousarray(lines), 
+        np.ascontiguousarray(weights), 
+        img_width, img_height,
+        threshold = threshold,
+        conf = 0.99,
+        spatial_coherence_weight = 0.0,
+        neighborhood_ball_radius = 1.0,
+        maximum_tanimoto_similarity = 1.0,
+        max_iters = 1000,
+        minimum_point_number = 5,
+        maximum_model_number = -1,
+        sampler_id = 0,
+        scoring_exponent = 1.0,
+        do_logging = False)
+
+    # Set the line labeling to -1 when the line has no corresponding VP
+    n_vp = len(vanishing_points)
+    labeling[labeling == n_vp] = -1
+    vanishing_points = np.array(vanishing_points)
+    vp1 = vanishing_points[:, :3]
+    vp2 = vanishing_points[:, 3:]
+
+    return vp1, vp2, labeling
+
 
 def find_homography_points(lines0, lines1, img1_size, img2_size, threshold = 3.0,
                            confidence = 0.5, minimum_point_number = 10):

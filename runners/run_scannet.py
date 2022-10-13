@@ -5,7 +5,6 @@ import os, sys
 import cv2
 import numpy as np
 from tqdm import tqdm
-import torch
 import time
 import math
 from joblib import Parallel, delayed
@@ -14,11 +13,9 @@ from robust_line_based_estimator.datasets.scannet import ScanNet
 from robust_line_based_estimator.line_matching.line_matcher import LineMatcher
 from robust_line_based_estimator.vp_matcher import vp_matching
 from robust_line_based_estimator.evaluation import evaluate_R_t, pose_auc
-from robust_line_based_estimator.visualization import (plot_images, plot_lines, plot_color_line_matches,
-                                                       plot_vp, plot_keypoints, plot_matches)
 from third_party.SuperGluePretrainedNetwork.models.matching import Matching
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from functions import verify_pyprogressivex, sg_matching, find_homography_points, find_relative_pose_from_points
+from functions import verify_pyprogressivex, sg_matching, joint_vp_detection_and_matching
 from robust_line_based_estimator.hybrid_relative_pose import run_hybrid_relative_pose
 from robust_line_based_estimator.line_junction_utils import append_h5, read_h5, get_endpoint_correspondences, angular_check
 from robust_line_based_estimator.point_based_relative_pose import run_point_based_relative_pose
@@ -39,6 +36,7 @@ SOLVER_FLAGS = [True, False, False, False]
 RUN_LINE_BASED = []
 USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
+USE_JOINT_VP_MATCHING = True
 OUTPUT_DB_PATH = "scannet_matches.h5"
 CORE_NUMBER = 16
 BATCH_SIZE = 100
@@ -170,12 +168,21 @@ def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB
     m_lines2_inl = m_lines2[:, :, [1, 0]]
 
     start_time = time.time()
-    # Detect vanishing points in the source image
-    vp1, vp_label1 = verify_pyprogressivex(int(2 * K1[0,2]), int(2 * K1[1,2]), m_lines1_inl, threshold=1.5)
-    # Detect vanishing points in the destination image
-    vp2, vp_label2 = verify_pyprogressivex(int(2 * K2[0,2]), int(2 * K2[1,2]), m_lines2_inl, threshold=1.5)
-    # Matching the vanishing points
-    m_vp1, m_label1, m_vp2, m_label2 = vp_matching(vp1, vp_label1, vp2, vp_label2)
+    if USE_JOINT_VP_MATCHING:
+        # Jointly detect VP and match them
+        m_vp1, m_vp2, m_label1 = joint_vp_detection_and_matching(
+            int(2 * K1[0,2]), int(2 * K1[1,2]), m_lines1_inl,
+            m_lines2_inl, threshold=1.5)
+        m_label2 = m_label1
+    else:
+        # Detect vanishing points in the source image
+        vp1, vp_label1 = verify_pyprogressivex(int(2 * K1[0,2]), int(2 * K1[1,2]),
+                                            m_lines1_inl, threshold=1.5)
+        # Detect vanishing points in the destination image
+        vp2, vp_label2 = verify_pyprogressivex(int(2 * K2[0,2]), int(2 * K2[1,2]),
+                                            m_lines2_inl, threshold=1.5)
+        # Matching the vanishing points
+        m_vp1, m_label1, m_vp2, m_label2 = vp_matching(vp1, vp_label1, vp2, vp_label2)
     elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
         print(f"VP detection time = {elapsed_time * 1000:.2f} ms")
@@ -276,4 +283,3 @@ print(f"AUC at 5 / 10 / 20 deg error: {auc[0]:.2f} / {auc[1]:.2f} / {auc[2]:.2f}
 auc = 100 * np.r_[pose_auc(pose_errors.max(1), thresholds=[5, 10, 20])]
 print(f"Median pose error: {np.median(pose_errors.max(1)):.2f}")
 print(f"AUC at 5 / 10 / 20 deg error: {auc[0]:.2f} / {auc[1]:.2f} / {auc[2]:.2f}")
-
