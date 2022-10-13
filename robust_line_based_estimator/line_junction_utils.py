@@ -28,7 +28,7 @@ def append_h5(dict_to_save, filename):
 def read_h5(key, filename):
     '''Saves dictionary to HDF5 file'''
 
-    with h5py.File(filename, 'r') as f:
+    with h5py.File(filename, 'a') as f:
         #with self.lock:
         if key in f.keys():
             return np.array(f.get(key))
