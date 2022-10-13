@@ -26,6 +26,11 @@ public:
 
 protected:
     int DecomposeHomography(const std::vector<M3D>& Hs, std::vector<ResultType>* res) const;
+
+    inline double ComputeOppositeOfMinor(
+        const Eigen::Matrix3d& matrix_,
+        const size_t row_,
+        const size_t col_) const;
 };
 
 }  // namespace line_relative_pose 
