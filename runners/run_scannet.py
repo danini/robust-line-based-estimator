@@ -37,6 +37,7 @@ RUN_LINE_BASED = []
 USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
 USE_JOINT_VP_MATCHING = True
+REFINE_VP = True
 OUTPUT_DB_PATH = "scannet_matches.h5"
 CORE_NUMBER = 16
 BATCH_SIZE = 100
@@ -45,6 +46,7 @@ BATCH_SIZE = 100
 # Initialize the dataset
 ###########################################
 dataset = ScanNet(root_dir=os.path.expanduser("~/data/ScanNet_relative_pose"), split='test')
+# dataset = ScanNet(root_dir=os.path.expanduser("~/Documents/datasets/ScanNet"), split='test')
 dataloader = dataset.get_dataloader()
 
 ###########################################
@@ -183,6 +185,14 @@ def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB
                                             m_lines2_inl, threshold=1.5)
         # Matching the vanishing points
         m_vp1, m_label1, m_vp2, m_label2 = vp_matching(vp1, vp_label1, vp2, vp_label2)
+
+    if REFINE_VP:
+        m_vp1 = _estimators.refine_vp(
+            m_label1, m_lines1_inl.reshape(-1, 4, 1), m_vp1)
+        m_vp1 = np.array(m_vp1)
+        m_vp2 = _estimators.refine_vp(
+            m_label2, m_lines2_inl.reshape(-1, 4, 1), m_vp2)
+        m_vp2 = np.array(m_vp2)
     elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
         print(f"VP detection time = {elapsed_time * 1000:.2f} ms")
@@ -220,10 +230,10 @@ def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB
         e2 = abs(a2 - math.pi / 2)
         e = max(e1, e2)
         if e < ANGLE_THRESHOLD:
-            line11 = np.reshape(m_lines1[i], (4, 1))
-            line12 = np.reshape(m_lines1[j], (4, 1))
-            line21 = np.reshape(m_lines2[i], (4, 1))
-            line22 = np.reshape(m_lines2[j], (4, 1))
+            line11 = np.reshape(m_lines1_inl[i], (4, 1))
+            line12 = np.reshape(m_lines1_inl[j], (4, 1))
+            line21 = np.reshape(m_lines2_inl[i], (4, 1))
+            line22 = np.reshape(m_lines2_inl[j], (4, 1))
 
             junctions_1.append(_estimators.Junction2d(line11, line12))
             junctions_2.append(_estimators.Junction2d(line21, line22))
@@ -248,7 +258,7 @@ processing_queue = []
 pose_errors = []
 runtimes = []
 run_count = 1
-print(f"Collecting data for [{run_count * BATCH_SIZE} / 1500] pairs")
+print(f"Collecting data for [{run_count * BATCH_SIZE} / {len(dataloader)}] pairs")
 for i, data in enumerate(dataloader):
     point_matches, m_lines1, m_lines2 = detect_and_load_data(data, line_matcher, CORE_NUMBER)
     processing_queue.append((data, point_matches, m_lines1, m_lines2))
@@ -270,7 +280,7 @@ for i, data in enumerate(dataloader):
         # Clearing the processing queue
         processing_queue = []
         run_count += 1
-        print(f"Collecting data for [{run_count * BATCH_SIZE} / 1500] pairs")
+        print(f"Collecting data for [{run_count * BATCH_SIZE} / {len(dataloader)}] pairs")
 pose_errors = np.array(pose_errors)
 
 print(f"Average run-time: {1000 * np.mean(runtimes):.2f} ms")

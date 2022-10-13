@@ -12,6 +12,7 @@ namespace py = pybind11;
 
 #include "base/junction.h"
 #include "estimators/functions.h"
+#include "refinement/vp_refinement.h"
 
 void bind_estimators(py::module& m) {
     using namespace line_relative_pose;
@@ -27,6 +28,11 @@ void bind_junction(py::module& m) {
         .def("point", &Junction2d::point)
         .def("line1", &Junction2d::line1)
         .def("line2", &Junction2d::line2);
+}
+
+void bind_refinement(py::module& m) {
+    using namespace line_relative_pose;
+    m.def("refine_vp", &VPRefinement);
 }
 
 void bind_ransaclib(py::module& m) {
@@ -97,5 +103,5 @@ PYBIND11_MODULE(line_relative_pose_estimators, m){
     bind_ransaclib(m);
     bind_junction(m);
     bind_estimators(m);
+    bind_refinement(m);
 }
-

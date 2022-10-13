@@ -44,6 +44,38 @@ private:
     const V3D p2_;
 };
 
+struct VpCostFunctor {
+  explicit VpCostFunctor(
+      double x1, double y1, double dcx, double dcy)
+      : x1_(x1), y1_(y1), dcx_(dcx), dcy_(dcy) {}
+
+  template <typename T>
+  bool operator()(const T* vp, T* residuals) const {
+    // Line passing through the VP and the center of the line segment
+    // l = cross(dc, vp)
+    T l1 = dcy_ * vp[2] - vp[1];
+    T l2 = vp[0] - dcx_ * vp[2];
+    T l3 = dcx_ * vp[1] - dcy_ * vp[0];
+
+    // Residual = max orthogonal distance of the two endpoints to l
+    residuals[0] = (ceres::abs(x1_ * l1 + y1_ * l2 + l3)
+                    / ceres::sqrt(l1 * l1 + l2 * l2));
+
+    return true;
+  }
+
+  static ceres::CostFunction* Create(double x1, double y1, double dcx, double dcy) {
+    return new ceres::AutoDiffCostFunction<VpCostFunctor, 1, 3>(
+        new VpCostFunctor(x1, y1, dcx, dcy));
+  }
+
+ private:
+  const double x1_;
+  const double y1_;
+  const double dcx_;
+  const double dcy_;
+};
+
 } // namespace line_relative_pose 
 
 #endif
