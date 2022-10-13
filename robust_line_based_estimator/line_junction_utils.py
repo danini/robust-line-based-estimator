@@ -556,7 +556,7 @@ def depth_consistency_check(m_lines1, m_lines2, K1, K2, img1, img2, depth_img1, 
     return valid_line_pairs
 
 
-def angular_check(m_lines1, m_lines2, K1, K2, img1, img2):
+def angular_check(m_lines1, m_lines2, K1, K2):
     # The number of line correspondences
     num_matches = m_lines1.shape[0]
     valid_line_pairs = []

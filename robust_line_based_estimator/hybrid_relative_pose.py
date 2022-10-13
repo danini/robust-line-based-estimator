@@ -13,17 +13,20 @@ def run_hybrid_relative_pose(K1, K2, line_matches, vp_matches, junction_matches,
     - th_pixel: threshold
     - solver_flags: whether to enable each solver
     '''
-    if vp_matches[0].shape[1] < 2:
+    if len(vp_matches[0].shape) != 2 or vp_matches[0].shape[1] < 2:
         solver_flags[3] = False
-    if vp_matches[0].shape[1] < 1:
+    if len(vp_matches[0].shape) != 2 or vp_matches[0].shape[1] < 1:
         solver_flags[2] = False
+        
+    threshold_normalizer = 0.25 * (K1[0, 0] + K1[1, 1] + K2[0, 0] + K2[1, 1])
+    th_pixel = th_pixel / threshold_normalizer
         
     if any(solver_flags) == True:
         options = _estimators.HybridLORansacOptions()
         options.data_type_weights_ = np.array([0.0, 0.0, 1.0])
         options.squared_inlier_thresholds_ = np.array([0.0, 0.0, th_pixel])
         res = _estimators.run_hybrid_relative_pose(K1, K2, line_matches, vp_matches, junction_matches, vp_labels, options, solver_flags)
-        return res[0][0], res[0][1]
+        return res[0][0], res[0][1], res[0][2]
     else:
-        return np.eye(3), np.zeros((3))
+        return np.eye(3), np.zeros((3)), np.eye(3)
 
