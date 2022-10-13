@@ -3,7 +3,7 @@ import cv2
 import torch
 import pyprogressivex
 
-def verify_pyprogressivex(img, lines_segments, threshold = 2.0):
+def verify_pyprogressivex(img_width, img_height, lines_segments, threshold = 2.0):
     lines = []
     weights = []
     for i in range(lines_segments.shape[0]):
@@ -19,7 +19,7 @@ def verify_pyprogressivex(img, lines_segments, threshold = 2.0):
     vanishing_points, labeling = pyprogressivex.findVanishingPoints(
         np.ascontiguousarray(lines),
         np.ascontiguousarray(weights),
-        img.shape[1], img.shape[0],
+        img_width, img_height,
         threshold = threshold,
         conf = 0.99,
         spatial_coherence_weight = 0.0,
