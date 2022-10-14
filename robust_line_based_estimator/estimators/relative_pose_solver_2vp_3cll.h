@@ -7,6 +7,8 @@
 
 namespace line_relative_pose {
 
+// 2 VPs and 3 lines
+// [assumption] Two pairs among the 3 lines are coplanar
 class RelativePoseSolver2vp3cll: public RelativePoseSolver2vp2pt {
 public:
     RelativePoseSolver2vp3cll(): RelativePoseSolver2vp2pt() {}

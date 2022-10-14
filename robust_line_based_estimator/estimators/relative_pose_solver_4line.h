@@ -7,6 +7,8 @@
 
 namespace line_relative_pose {
 
+// 4-line homography solver
+// [assumption] 4 coplanar lines
 class RelativePoseSolver4line: public RelativePoseSolverHomography {
 public:
     RelativePoseSolver4line(): RelativePoseSolverHomography() {}

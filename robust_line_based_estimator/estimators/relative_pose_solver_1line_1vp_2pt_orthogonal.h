@@ -7,6 +7,8 @@
 
 namespace line_relative_pose {
 
+// 1 line + 1 VP + 2 points
+// [assumption] the line is orthogonal to the VP
 class RelativePoseSolver1line1vp2pt_orthogonal: public RelativePoseSolver2vp2pt {
 public:
     RelativePoseSolver1line1vp2pt_orthogonal(): RelativePoseSolver2vp2pt() {}

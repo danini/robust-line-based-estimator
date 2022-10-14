@@ -7,6 +7,9 @@
 
 namespace line_relative_pose {
 
+// 1 VP + 3 lines
+// [assumption] The VP is orthogonal to the first line
+// [assumption] Two pairs among the 3 lines are coplanar
 class RelativePoseSolver1vp3cll_orthogonal: public RelativePoseSolver1line1vp2pt_orthogonal {
 public:
     RelativePoseSolver1vp3cll_orthogonal(): RelativePoseSolver1line1vp2pt_orthogonal() {}

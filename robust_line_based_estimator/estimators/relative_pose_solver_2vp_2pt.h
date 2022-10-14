@@ -7,6 +7,7 @@
 
 namespace line_relative_pose {
 
+// 2 VPs + 2 points
 class RelativePoseSolver2vp2pt: public RelativePoseSolverBase {
 public:
     RelativePoseSolver2vp2pt(): RelativePoseSolverBase() {}

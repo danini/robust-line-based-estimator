@@ -7,6 +7,8 @@
 
 namespace line_relative_pose {
 
+// 1 vp + 2 points (the first point needs to be an intersection)
+// [assumption] the VP is orthogonal to the first line for the first intersection
 class RelativePoseSolver1vp2pt_orthogonal: public RelativePoseSolver1line1vp2pt_orthogonal {
 public:
     RelativePoseSolver1vp2pt_orthogonal(): RelativePoseSolver1line1vp2pt_orthogonal() {}

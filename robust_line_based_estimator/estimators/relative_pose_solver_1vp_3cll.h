@@ -7,6 +7,7 @@
 
 namespace line_relative_pose {
 
+// 1 VP + 3 coplar lines 
 class RelativePoseSolver1vp3cll: public RelativePoseSolver1vp3pt {
 public:
     RelativePoseSolver1vp3cll(): RelativePoseSolver1vp3pt() {}
