@@ -14,8 +14,8 @@ void HybridRelativePoseEstimator::InitSolvers() {
     AddSolver(std::shared_ptr<RelativePoseSolverBase>(new RelativePoseSolver5pt()));
     AddSolver(std::shared_ptr<RelativePoseSolverBase>(new RelativePoseSolver4line()));
     AddSolver(std::shared_ptr<RelativePoseSolverBase>(new RelativePoseSolver1vp3pt()));
-    AddSolver(std::shared_ptr<RelativePoseSolverBase>(new RelativePoseSolver1vp3cll()));
     AddSolver(std::shared_ptr<RelativePoseSolverBase>(new RelativePoseSolver2vp2pt()));
+    AddSolver(std::shared_ptr<RelativePoseSolverBase>(new RelativePoseSolver1vp3cll()));
     AddSolver(std::shared_ptr<RelativePoseSolverBase>(new RelativePoseSolver2vp3cll()));
 }
 
