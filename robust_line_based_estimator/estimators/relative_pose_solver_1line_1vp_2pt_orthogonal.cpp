@@ -7,6 +7,10 @@ int RelativePoseSolver1line1vp2pt_orthogonal::MinimalSolver(const std::vector<Li
                                                             const std::vector<JunctionMatch>& junction_matches,
                                                             std::vector<ResultType>* res) const 
 {
+    THROW_CHECK_EQ(line_matches.size(), 1);
+    THROW_CHECK_EQ(vp_matches.size(), 1);
+    THROW_CHECK_EQ(junction_matches.size(), 2);
+
     std::vector<VPMatch> new_vp_matches;
     new_vp_matches.push_back(vp_matches[0]);
 
