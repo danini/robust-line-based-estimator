@@ -26,7 +26,7 @@ int RelativePoseSolver2vp3cll::MinimalSolver(const std::vector<LineMatch>& line_
     junc2 = Junction2d(line_matches[1].second, line_matches[2].second);
     junction_matches.push_back(std::make_pair(junc1, junc2));
     
-    // solve for 1vp + 3pt
+    // solve for 2vp + 2pt
     int num_sols = 0;
     int tmp_num_sols;
     std::vector<ResultType> tmpres;
