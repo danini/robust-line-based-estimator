@@ -34,7 +34,7 @@ ANGLE_THRESHOLD = math.pi / 32
 # 3 - 2vp + 2pt
 SOLVER_FLAGS = [True, False, False, False]
 RUN_LINE_BASED = []
-USE_ENDPOINTS = False
+USE_ENDPOINTS = True
 MAX_JUNCTIONS = 0
 USE_JOINT_VP_MATCHING = True
 REFINE_VP = True
@@ -102,15 +102,15 @@ def detect_and_load_data(data, line_matcher, CORE_NUMBER):
 
     # Try loading the SuperPoint + SuperGlue matches from the database file
     start_time = time.time()
-    # point_matches = read_h5(f"sp-sg-{label1}-{label2}", OUTPUT_DB_PATH)
-    # if point_matches is None:
-    gray_img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
-    gray_img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
+    point_matches = read_h5(f"sp-sg-{label1}-{label2}", OUTPUT_DB_PATH)
+    if point_matches is None:
+        gray_img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
+        gray_img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
 
-    # Detect keypoints by SuperPoint + SuperGlue
-    point_matches, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
-    # Saving to the database
-    append_h5({f"sp-sg-{label1}-{label2}": point_matches}, OUTPUT_DB_PATH)
+        # Detect keypoints by SuperPoint + SuperGlue
+        point_matches, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
+        # Saving to the database
+        append_h5({f"sp-sg-{label1}-{label2}": point_matches}, OUTPUT_DB_PATH)
     elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
         print(f"SP+SG time = {elapsed_time * 1000:.2f} ms")
