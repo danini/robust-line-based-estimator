@@ -35,7 +35,8 @@ class AmsterdamHouse(Dataset):
             P2 = np.loadtxt(proj_paths[i + 1])
             K1, R1, t1, _, _, _, _ = cv2.decomposeProjectionMatrix(P1)
             K2, R2, t2, _, _, _, _ = cv2.decomposeProjectionMatrix(P2)
-            t1, t2 = -t1[:3, 0] / t1[3, 0], -t2[:3, 0] / t2[3, 0]
+            t1, t2 = t1[:3, 0] / t1[3, 0], t2[:3, 0] / t2[3, 0]
+            t1, t2 = -R1.dot(t1), -R2.dot(t2)
             if use_mean_intrinsics:
                 self.K1.append(K)
                 self.K2.append(K)
