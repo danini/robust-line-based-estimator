@@ -3,7 +3,7 @@ import sys
 sys.path.append("build/robust_line_based_estimator")
 import line_relative_pose_estimators as _estimators
 
-def run_hybrid_relative_pose(K1, K2, line_matches, vp_matches, junction_matches, vp_labels, th_pixel=1.0, solver_flags=[True, True, True, True]):
+def run_hybrid_relative_pose(K1, K2, line_matches, vp_matches, junction_matches, vp_labels, th_pixel=1.0, solver_flags=[True, True, True, True, True, True]):
     '''
     Inputs:
     - line_matches: pair of numpy array the same size [(4, n_lines), (4, n_lines)]
@@ -17,10 +17,10 @@ def run_hybrid_relative_pose(K1, K2, line_matches, vp_matches, junction_matches,
         solver_flags[3] = False
     if len(vp_matches[0].shape) != 2 or vp_matches[0].shape[1] < 1:
         solver_flags[2] = False
-        
+
     threshold_normalizer = 0.25 * (K1[0, 0] + K1[1, 1] + K2[0, 0] + K2[1, 1])
     th_pixel = th_pixel / threshold_normalizer
-        
+
     if any(solver_flags) == True:
         options = _estimators.HybridLORansacOptions()
         options.data_type_weights_ = np.array([0.0, 0.0, 1.0])

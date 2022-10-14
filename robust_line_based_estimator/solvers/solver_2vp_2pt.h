@@ -2,20 +2,21 @@
 // \author Petr Hruby
 // \date June 2022
 // #include <vector>
+#pragma once
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <random>
 
 //PROTOTYPES
 //compute a rotation from two vanishing points
-int stage_1_solver_rotation_2vp(Eigen::Vector3d vp1, //1st vanishing point in 1st view
+inline int stage_1_solver_rotation_2vp(Eigen::Vector3d vp1, //1st vanishing point in 1st view
 								Eigen::Vector3d vq1, //1st vanishing point in 2nd view
 								Eigen::Vector3d vp2, //2nd vanishing point in 1st view
 								Eigen::Vector3d vq2, //2nd vanishing point in 2nd view
 								Eigen::Matrix3d * Rs); //set of rotations consistent with the vanishing points (4 rotations)
 
 //compute a translation from 2 points + known rotation
-int stage_2_solver_translation_2pt(const Eigen::Vector3d p1, //1st point in 1st view
+inline int stage_2_solver_translation_2pt(const Eigen::Vector3d p1, //1st point in 1st view
 									const Eigen::Vector3d q1, //1st point in 2nd view
 									const Eigen::Vector3d p2, //2nd point in 1st view
 									const Eigen::Vector3d q2, //2nd point in 2nd view
@@ -23,7 +24,7 @@ int stage_2_solver_translation_2pt(const Eigen::Vector3d p1, //1st point in 1st 
 									Eigen::Vector3d &t); //translation vector
 
 //FUNCTIONS
-int stage_1_solver_rotation_2vp(Eigen::Vector3d vp1, Eigen::Vector3d vq1, Eigen::Vector3d vp2, Eigen::Vector3d vq2, Eigen::Matrix3d * Rs)
+inline int stage_1_solver_rotation_2vp(Eigen::Vector3d vp1, Eigen::Vector3d vq1, Eigen::Vector3d vp2, Eigen::Vector3d vq2, Eigen::Matrix3d * Rs)
 {
 	//normalize the vps
 	vp1 = vp1/vp1.norm();
@@ -70,7 +71,7 @@ int stage_1_solver_rotation_2vp(Eigen::Vector3d vp1, Eigen::Vector3d vq1, Eigen:
 	return 4;
 }
 
-int stage_2_solver_translation_2pt(const Eigen::Vector3d p1, const Eigen::Vector3d q1, const Eigen::Vector3d p2, const Eigen::Vector3d q2, const Eigen::Matrix3d R, Eigen::Vector3d &t)
+inline int stage_2_solver_translation_2pt(const Eigen::Vector3d p1, const Eigen::Vector3d q1, const Eigen::Vector3d p2, const Eigen::Vector3d q2, const Eigen::Matrix3d R, Eigen::Vector3d &t)
 {
 	Eigen::Matrix<double,2,3> M;
 	M(0,0) = p1(0)*q1(2)*R(1,0) + p1(1)*q1(2)*R(1,1) + p1(2)*q1(2)*R(1,2) - p1(0)*q1(1)*R(2,0) - p1(1)*q1(1)*R(2,1) - p1(2)*q1(1)*R(2,2);

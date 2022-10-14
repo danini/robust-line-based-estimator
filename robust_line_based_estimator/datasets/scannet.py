@@ -53,4 +53,5 @@ class ScanNet(Dataset):
         return outputs
 
     def __len__(self):
-        return len(self.img_pairs)
+        return 100
+        # return len(self.img_pairs)

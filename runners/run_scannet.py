@@ -32,7 +32,9 @@ ANGLE_THRESHOLD = math.pi / 32
 # 1 - 4line
 # 2 - 1vp + 3pt
 # 3 - 2vp + 2pt
-SOLVER_FLAGS = [True, False, False, False]
+# 4 - 1vp + 3cll
+# 5 - 2vp + 3cll
+SOLVER_FLAGS = [True, False, False, False, False, False]
 RUN_LINE_BASED = []
 USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0

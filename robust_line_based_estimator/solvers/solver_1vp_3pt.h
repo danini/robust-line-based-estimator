@@ -1,14 +1,15 @@
 // 
 // \author Petr Hruby
-// \date August 2022
+// \date August 2022\
 // #include <vector>
+#pragma once
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <random>
 
 //PROTOTYPES
 //compute relative pose from 1 vanishing point and 3 points
-int solver_wrapper_1vp_3pt(Eigen::Vector3d vp, //the vanishing point in 1st view
+inline int solver_wrapper_1vp_3pt(Eigen::Vector3d vp, //the vanishing point in 1st view
 					Eigen::Vector3d vq, //the vanishing point in 2nd view
 					Eigen::Vector3d * pts, //array of 3 points in the first view
 					Eigen::Vector3d * qts, //array of 3 points in the second view
@@ -17,12 +18,12 @@ int solver_wrapper_1vp_3pt(Eigen::Vector3d vp, //the vanishing point in 1st view
 
 //solve the polynomial system arising from the 1vp_3pt problem				
 //returns a matrix of (possibly complex) rotation parameters consistent with the input
-Eigen::MatrixXcd solver_1vp_3pt(Eigen::Vector3d * p, //rectified points in the first view
+inline Eigen::MatrixXcd solver_1vp_3pt(Eigen::Vector3d * p, //rectified points in the first view
 				Eigen::Vector3d * q); //rectified points in the second view
 
 
 //sample one instance of the problem + its solution
-void sample(Eigen::Vector3d * vps, //array of 1 vanishing point in 1st view
+inline void sample(Eigen::Vector3d * vps, //array of 1 vanishing point in 1st view
 			Eigen::Vector3d * vqs, //array of 1 vanishing point in 2nd view
 			Eigen::Vector3d * pts, //array of 3 points in 1st view
 			Eigen::Vector3d * qts, //array of 3 points in 2nd view
@@ -30,13 +31,13 @@ void sample(Eigen::Vector3d * vps, //array of 1 vanishing point in 1st view
 			Eigen::Vector3d &T); //translation vector
 
 //sample a vanishing point consistent with the rotation R and translation T
-void sample_vp(const Eigen::Matrix3d R, //rotation matrix
+inline void sample_vp(const Eigen::Matrix3d R, //rotation matrix
 				const Eigen::Vector3d T, //translation vector
 				Eigen::Vector3d &vp, //vanishing point in 1st view
 				Eigen::Vector3d &vq); //vanishing point in 2nd view
 				
 //FUNCTIONS
-Eigen::MatrixXcd solver_1vp_3pt(Eigen::Vector3d * p, Eigen::Vector3d * q)
+inline Eigen::MatrixXcd solver_1vp_3pt(Eigen::Vector3d * p, Eigen::Vector3d * q)
 {
 	//build vectors mA, mB, mC, mD, mE, mF, mG, mH, mJ, such that:
 		//matrix M(t) = t*[mA mD mG] + (1-t*t)*[mB mE mH] + (1+t*t)*[mC mF mJ]
@@ -164,7 +165,7 @@ Eigen::MatrixXcd solver_1vp_3pt(Eigen::Vector3d * p, Eigen::Vector3d * q)
 	return C.eigenvalues();
 }
 
-int solver_wrapper_1vp_3pt(Eigen::Vector3d vp, Eigen::Vector3d vq, Eigen::Vector3d * pts, Eigen::Vector3d * qts, Eigen::Matrix3d * Rs, Eigen::Vector3d * Ts)
+inline int solver_wrapper_1vp_3pt(Eigen::Vector3d vp, Eigen::Vector3d vq, Eigen::Vector3d * pts, Eigen::Vector3d * qts, Eigen::Matrix3d * Rs, Eigen::Vector3d * Ts)
 {
 	vp = vp/vp.norm();
 	vq = vq/vq.norm();
@@ -305,7 +306,7 @@ int solver_wrapper_1vp_3pt(Eigen::Vector3d vp, Eigen::Vector3d vq, Eigen::Vector
 }
 
 
-void sample_vp(const Eigen::Matrix3d R, const Eigen::Vector3d T, Eigen::Vector3d &vp, Eigen::Vector3d &vq)
+inline void sample_vp(const Eigen::Matrix3d R, const Eigen::Vector3d T, Eigen::Vector3d &vp, Eigen::Vector3d &vq)
 {
 	//initialize the random samplers
 	std::normal_distribution<double> norm_sampler(0.0,1.0);
@@ -357,7 +358,7 @@ void sample_vp(const Eigen::Matrix3d R, const Eigen::Vector3d T, Eigen::Vector3d
 	vq = m1.cross(m2);
 }
 
-void sample(Eigen::Vector3d * vps, Eigen::Vector3d * vqs, Eigen::Vector3d * pts, Eigen::Vector3d * qts, Eigen::Matrix3d &R, Eigen::Vector3d &T)
+inline void sample(Eigen::Vector3d * vps, Eigen::Vector3d * vqs, Eigen::Vector3d * pts, Eigen::Vector3d * qts, Eigen::Matrix3d &R, Eigen::Vector3d &T)
 {
 	//init the random samplers
 	std::normal_distribution<double> norm_sampler(0.0,1.0);

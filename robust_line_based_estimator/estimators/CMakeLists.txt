@@ -11,6 +11,8 @@ LINE_RELATIVE_POSE_ADD_SOURCES(
     relative_pose_solver_homography.h relative_pose_solver_homography.cpp
     relative_pose_solver_4line.h relative_pose_solver_4line.cpp
     relative_pose_solver_1vp_3pt.h relative_pose_solver_1vp_3pt.cpp
+    relative_pose_solver_1vp_3cll.h relative_pose_solver_1vp_3cll.cpp
     relative_pose_solver_2vp_2pt.h relative_pose_solver_2vp_2pt.cpp
+    relative_pose_solver_2vp_3cll.h relative_pose_solver_2vp_3cll.cpp
 )
 
