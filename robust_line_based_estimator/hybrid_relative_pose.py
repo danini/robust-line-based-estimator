@@ -3,7 +3,7 @@ import sys
 sys.path.append("build/robust_line_based_estimator")
 import line_relative_pose_estimators as _estimators
 
-def run_hybrid_relative_pose(K1, K2, line_matches, vp_matches, junction_matches, vp_labels, th_vp_angle=5.0, th_pixel=1.0, data_weights=[0.0, 1.0, 1.0], solver_flags=[True, True, True, True, True, True, True, True, True], ls_refinement=0, weights_refinement=[1.0, 1.0]):
+def run_hybrid_relative_pose(K1, K2, line_matches, vp_matches, junction_matches, vp_labels, th_vp_angle=5.0, th_pixel=1.0, data_weights=[0.0, 0.0, 1.0], solver_flags=[True, True, True, True, True, True, True, True, True], ls_refinement=0, weights_refinement=[1.0, 1.0]):
     '''
     Inputs:
     - line_matches: pair of numpy array the same size [(4, n_lines), (4, n_lines)]
@@ -24,7 +24,7 @@ def run_hybrid_relative_pose(K1, K2, line_matches, vp_matches, junction_matches,
     if any(solver_flags) == True:
         options = _estimators.HybridLORansacOptions()
         options.data_type_weights_ = np.array(data_weights)
-        options.squared_inlier_thresholds_ = np.array([100.0, th_vp_angle, th_pixel])
+        options.squared_inlier_thresholds_ = np.array([0.0, th_vp_angle, th_pixel])
         # options.final_least_squares_ = True
         res = _estimators.run_hybrid_relative_pose(K1, K2, line_matches, vp_matches, junction_matches, vp_labels, options, solver_flags, ls_refinement, weights_refinement)
         return res[0][0], res[0][1], res[0][2]
