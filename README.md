@@ -61,3 +61,9 @@ Then run the notebook `examples/relative_pose_evaluation_scannet.ipynb`.
 Download the [7Scenes dataset](https://www.microsoft.com/en-us/research/project/rgb-d-dataset-7-scenes/) and put it where it suits you. You can also only download one scene and later specify this scene in the dataloader constructor.
 
 Then run the script `runners/run_7scenes.py`.
+
+
+## Evaluation on the ETH3D dataset
+Download the [ETH3D dataset](https://www.eth3d.net/datasets) (training split of the high-res multi-view, undistorted images + GT extrinsics & intrinsics should be enough) and put it where it suits you. The input argument 'downsize_factor' can be used to downscale the images, because they can be quite large otherwise.
+
+Then run the script `runners/run_eth3d.py`.
