@@ -121,6 +121,7 @@ struct VpRotationCostFunctor {
         T vp1_rotated[3];
         ceres::QuaternionRotatePoint(qvec, vp1, vp1_rotated);
         residuals[0] = CeresComputeDist3D_sine(vp1_rotated, vp2);
+        return true;
     }
 
     static ceres::CostFunction* Create() {
