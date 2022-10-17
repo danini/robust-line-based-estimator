@@ -162,7 +162,7 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnJunction(const ResultType
 }
 
 double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& model, int t, int i) const {
-    // Now that all lines are considered to be inliers
+    // Now that all lines are considered to be outliers
     if (t == 0) {
         return 0.0;
     }
