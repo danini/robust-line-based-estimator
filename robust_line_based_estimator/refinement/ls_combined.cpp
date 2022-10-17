@@ -117,7 +117,7 @@ void LeastSquares_Combined(const std::vector<JunctionMatch>& junction_matches,
 
     // Solve the optimization problem
     ceres::Solve(options, &problem, &summary);
-    std::cout<<"DEBUG: "<<summary.BriefReport()<<std::endl;
+    // std::cout<<"[LOG] "<<summary.BriefReport()<<std::endl;
     std::get<0>(*res) = QuaternionToRotationMatrix(qvec);
     std::get<1>(*res) = tvec;
 }
