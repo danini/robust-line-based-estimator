@@ -26,8 +26,14 @@ import line_relative_pose_estimators as _estimators
 ###########################################
 # Hyperparameters to be tuned
 ###########################################
-TH_PIXEL = 3.0
 ANGLE_THRESHOLD = math.pi / 32
+# scoring
+TH_VP_ANGLE = 5.0
+TH_PIXEL = 3.0
+DATA_WEIGHTS = [0.0, 0.0, 1.0]
+# LO refinement
+LS_REFINEMENT = 1 # 0 for sampson, 1 for sampson + vp + line, 2 for sampson + vp (fixed)
+WEIGHTS_REFINEMENT = [1000.0, 100.0] # 0 for vp rotation error, 1 for line-vp error
 # 0 - 5pt
 # 1 - 4line
 # 2 - 1vp + 3pt
@@ -37,7 +43,7 @@ ANGLE_THRESHOLD = math.pi / 32
 # 6 - 1line + 1vp + 2pt + orthogonal
 # 7 - 1vp + 2pt + orthogonal
 # 8 - 1vp + 3line + orthogonal
-SOLVER_FLAGS = [False, False, False, False, False, False, False, False, True]
+SOLVER_FLAGS = [True, False, False, False, False, False, False, False, False]
 RUN_LINE_BASED = []
 USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
@@ -252,8 +258,12 @@ def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB
                                                       [m_vp1.transpose(), m_vp2.transpose()],
                                                       [junctions_1, junctions_2],
                                                       [m_label1, m_label2],
+                                                      th_vp_angle=TH_VP_ANGLE,
                                                       th_pixel=TH_PIXEL,
-                                                      solver_flags=SOLVER_FLAGS)
+                                                      data_weights=DATA_WEIGHTS,
+                                                      solver_flags=SOLVER_FLAGS,
+                                                      ls_refinement=LS_REFINEMENT,
+                                                      weights_refinement=WEIGHTS_REFINEMENT)
     elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
         print(f"Estimation time = {elapsed_time * 1000:.2f} ms")
@@ -298,3 +308,4 @@ print(f"AUC at 5 / 10 / 20 deg error: {auc[0]:.2f} / {auc[1]:.2f} / {auc[2]:.2f}
 auc = 100 * np.r_[pose_auc(pose_errors.max(1), thresholds=[5, 10, 20])]
 print(f"Median pose error: {np.median(pose_errors.max(1)):.2f}")
 print(f"AUC at 5 / 10 / 20 deg error: {auc[0]:.2f} / {auc[1]:.2f} / {auc[2]:.2f}")
+

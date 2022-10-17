@@ -12,14 +12,16 @@ std::pair<std::tuple<M3D, V3D, M3D>, ransac_lib::HybridRansacStatistics> run_hyb
         const std::pair<std::vector<Junction2d>, std::vector<Junction2d>>& junction_matches, 
         const std::pair<std::vector<int>, std::vector<int>> vp_labels,
         const ransac_lib::HybridLORansacOptions& options,
-        const std::vector<bool>& solver_flags) 
+        const std::vector<bool>& solver_flags,
+        const int ls_refinement,
+        const std::vector<double>& weights_refinement) 
 {
     ransac_lib::HybridLORansacOptions options_ = options;
     std::random_device rand_dev;
     options_.random_seed_ = rand_dev();
 
     // use valid solvers with solver_flags options
-    HybridRelativePoseEstimator solver(K1, K2, line_matches, vp_matches, junction_matches, vp_labels);
+    HybridRelativePoseEstimator solver(K1, K2, line_matches, vp_matches, junction_matches, vp_labels, ls_refinement, weights_refinement);
     std::vector<double> solver_probabilities;
     solver.solver_probabilities(&solver_probabilities);
     THROW_CHECK_EQ(solver_flags.size(), solver.num_minimal_solvers());

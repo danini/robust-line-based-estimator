@@ -15,8 +15,10 @@ public:
                                 const std::pair<Eigen::Matrix4Xd, Eigen::Matrix4Xd>& line_matches,
                                 const std::pair<Eigen::Matrix3Xd, Eigen::Matrix3Xd>& vp_matches,
                                 const std::pair<std::vector<Junction2d>, std::vector<Junction2d>>& junction_matches,
-                                const std::pair<std::vector<int>, std::vector<int>>& vp_labels):
-        HybridRelativePoseEstimatorBase(K1, K2, line_matches, vp_matches, junction_matches, vp_labels) { InitSolvers(); }
+                                const std::pair<std::vector<int>, std::vector<int>>& vp_labels,
+                                const int ls_refinement,
+                                const std::vector<double>& weights_refinement):
+        HybridRelativePoseEstimatorBase(K1, K2, line_matches, vp_matches, junction_matches, vp_labels, ls_refinement, weights_refinement) { InitSolvers(); }
 
     using ResultType = HybridRelativePoseEstimatorBase::ResultType;
 

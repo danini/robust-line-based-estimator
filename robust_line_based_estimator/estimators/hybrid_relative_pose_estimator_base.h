@@ -18,7 +18,9 @@ public:
                                     const std::pair<Eigen::Matrix4Xd, Eigen::Matrix4Xd>& line_matches,
                                     const std::pair<Eigen::Matrix3Xd, Eigen::Matrix3Xd>& vp_matches,
                                     const std::pair<std::vector<Junction2d>, std::vector<Junction2d>>& junction_matches,
-                                    const std::pair<std::vector<int>, std::vector<int>>& vp_labels);
+                                    const std::pair<std::vector<int>, std::vector<int>>& vp_labels,
+                                    int ls_refinement,
+                                    const std::vector<double>& weights_refinement);
 
     using ResultType = std::tuple<M3D, V3D, M3D>;
 
@@ -53,6 +55,10 @@ public:
                                      std::vector<ResultType>* res) const = 0;
 
 protected:
+    // options
+    int ls_refinement_ = 0; // 0 for sampson, 1 for sampson + vp + line, 2 for sampson + vp (fixed)
+    std::vector<double> weights_refinement_; // 0 for vp rotation error, 1 for line-vp error
+
     // calibration
     M3D K1_inv_, K2_inv_;
 
@@ -65,11 +71,15 @@ protected:
         m_norm_junctions_;
 
     // used for advanced sampling
-    std::vector<int> vp_labels_img1_;
-    std::vector<int> vp_labels_img2_;
+    std::vector<std::vector<int>> vp_to_line_ids_img1_; // line ids for each vp
+    std::vector<std::vector<int>> vp_to_line_ids_img2_; // line ids for each vp
 
     // set the entry to zero to disable particular solvers
     std::vector<double> prior_probabilities_;
+
+    // scoring
+    double EvaluateModelOnVP(const ResultType& model, int i) const;
+    double EvaluateModelOnJunction(const ResultType& model, int i) const;
 
     // functions
     inline limap::Line2d normalize_line(const limap::Line2d& line, const M3D& K_inv) const { return limap::Line2d(normalize_point(line.start, K_inv), normalize_point(line.end, K_inv)); }

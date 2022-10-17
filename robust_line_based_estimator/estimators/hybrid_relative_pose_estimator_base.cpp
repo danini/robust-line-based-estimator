@@ -1,5 +1,6 @@
 #include "estimators/hybrid_relative_pose_estimator_base.h"
 #include "refinement/ls_sampson.h"
+#include "refinement/ls_combined.h"
 #include <iostream>
 #include <chrono>
 
@@ -10,7 +11,9 @@ HybridRelativePoseEstimatorBase::HybridRelativePoseEstimatorBase(
             const std::pair<Eigen::Matrix4Xd, Eigen::Matrix4Xd>& line_matches,
             const std::pair<Eigen::Matrix3Xd, Eigen::Matrix3Xd>& vp_matches,
             const std::pair<std::vector<Junction2d>, std::vector<Junction2d>>& junction_matches,
-            const std::pair<std::vector<int>, std::vector<int>>& vp_labels) 
+            const std::pair<std::vector<int>, std::vector<int>>& vp_labels,
+            const int ls_refinement, 
+            const std::vector<double>& weights_refinement) 
 {
     // initiate calibrations
     K1_inv_ = K1.inverse(); 
@@ -47,8 +50,27 @@ HybridRelativePoseEstimatorBase::HybridRelativePoseEstimatorBase(
     }
 
     // initiate vp labels
-    vp_labels_img1_ = vp_labels.first;
-    vp_labels_img2_ = vp_labels.second;
+    vp_to_line_ids_img1_.resize(num_m_vps);
+    for (int i = 0; i < vp_labels.first.size(); ++i) {
+        if (vp_labels.first[i] < 0)
+            continue;
+        int label = vp_labels.first[i];
+        THROW_CHECK_LT(label, num_m_vps);
+        vp_to_line_ids_img1_[label].push_back(i);
+    }
+    vp_to_line_ids_img2_.resize(num_m_vps);
+    for (int i = 0; i < vp_labels.second.size(); ++i) {
+        if (vp_labels.second[i] < 0)
+            continue;
+        int label = vp_labels.second[i];
+        THROW_CHECK_LT(label, num_m_vps);
+        vp_to_line_ids_img2_[label].push_back(i);
+    }
+
+    // init options
+    ls_refinement_ = ls_refinement;
+    THROW_CHECK_EQ(weights_refinement.size(), 2)
+    weights_refinement_ = weights_refinement;
 }
 
 void HybridRelativePoseEstimatorBase::set_prior_probabilities(const std::vector<double>& probs) {
@@ -89,13 +111,17 @@ bool HybridRelativePoseEstimatorBase::check_cheirality(const V2D& p1, const V2D&
     return res[0] > 0.0 && res[1] > 0.0;
 }
 
-double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& model, int t, int i) const {
-    // Now that all lines and vps are considered to be inliers
-    if (t == 0 || t == 1) {
-        return 0.0;
-    }
-    THROW_CHECK_EQ(t, 2);
+double HybridRelativePoseEstimatorBase::EvaluateModelOnVP(const ResultType& model, int i) const {
+    const V3D &vp1 = m_norm_vps_[i].first;
+    const V3D &vp2 = m_norm_vps_[i].second;
+    const M3D& R = std::get<0>(model);
+    
+    V3D vp1_rotated = R * vp1;
+    double cos_val = std::abs(vp1_rotated.dot(vp2));
+    return acos(cos_val) * 180.0 / M_PI;
+}
 
+double HybridRelativePoseEstimatorBase::EvaluateModelOnJunction(const ResultType& model, int i) const {
     const V2D &p1 = m_norm_junctions_[i].first.point();
     const V2D &p2 = m_norm_junctions_[i].second.point();
 
@@ -135,12 +161,66 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& m
         (rxc * rxc + ryc * ryc + rx * rx + ry * ry));
 }
 
+double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& model, int t, int i) const {
+    // Now that all lines are considered to be inliers
+    if (t == 0) {
+        return 0.0;
+    }
+    else if (t == 1) {
+        return EvaluateModelOnVP(model, i);
+    }
+    else if (t == 2) {
+        return EvaluateModelOnJunction(model, i);
+    }
+    else
+        throw std::runtime_error("Error! Not supported.");
+}
+
 void HybridRelativePoseEstimatorBase::LeastSquares(const std::vector<std::vector<int>>& sample, ResultType* res) const {
     std::vector<JunctionMatch> junction_matches;
     for (size_t i = 0; i < sample[2].size(); ++i) {
         junction_matches.push_back(m_norm_junctions_[sample[2][i]]);
     } 
-    LeastSquares_Sampson(junction_matches, res);
+    if (ls_refinement_ == 0) {
+        LeastSquares_Sampson(junction_matches, res);
+    }
+    else if (ls_refinement_ == 1 || ls_refinement_ == 2) {
+        // no vp as inliers
+        if (sample[1].empty())
+            LeastSquares_Sampson(junction_matches, res);
+
+        // here we start
+        std::vector<VPMatch> vp_matches;
+        std::vector<std::vector<limap::Line2d>> sup_lines_img1; // supporting lines
+        std::vector<std::vector<limap::Line2d>> sup_lines_img2;
+        for (size_t i = 0; i < sample[1].size(); ++i) {
+            int vp_id = sample[1][i];
+            // add vp match
+            vp_matches.push_back(m_norm_vps_[vp_id]);
+            // add supporting lines for image 1
+            std::vector<limap::Line2d> lines_img1;
+            for (size_t j = 0; j < vp_to_line_ids_img1_[vp_id].size(); ++j) {
+                lines_img1.push_back(m_norm_lines_[vp_to_line_ids_img1_[vp_id][j]].first);
+            }
+            sup_lines_img1.push_back(lines_img1);
+            // add supporting lines for image 2
+            std::vector<limap::Line2d> lines_img2;
+            for (size_t j = 0; j < vp_to_line_ids_img2_[vp_id].size(); ++j) {
+                lines_img2.push_back(m_norm_lines_[vp_to_line_ids_img2_[vp_id][j]].second);
+            }
+            sup_lines_img2.push_back(lines_img2);
+        }
+        const double w_vp = weights_refinement_[0];
+        const double w_line_vp = weights_refinement_[1];
+        if (ls_refinement_ == 1)
+            LeastSquares_Combined(junction_matches, vp_matches, sup_lines_img1, sup_lines_img2, res, w_vp, w_line_vp, false);
+        else
+            LeastSquares_Combined(junction_matches, vp_matches, sup_lines_img1, sup_lines_img2, res, w_vp, w_line_vp, true);
+    }
+    else {
+        throw std::runtime_error("Error! Not supported");
+    }
+    // update E
     std::get<2>(*res) = essential_from_rel_pose(
         std::get<0>(*res), 
         std::get<1>(*res));

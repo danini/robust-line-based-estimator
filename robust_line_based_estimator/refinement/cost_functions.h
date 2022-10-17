@@ -76,6 +76,58 @@ struct VpCostFunctor {
   const double dcy_;
 };
 
+template <typename T>
+T CeresComputeDist3D_sine(const T dir1[3], const T dir2[3]) {
+    T dir1_norm = ceres::sqrt(dir1[0] * dir1[0] + dir1[1] * dir1[1] + dir1[2] * dir1[2] + EPS);
+    T dir2_norm = ceres::sqrt(dir2[0] * dir2[0] + dir2[1] * dir2[1] + dir2[2] * dir2[2] + EPS);
+    T dir1_normalized[3], dir2_normalized[3];
+    for (size_t i = 0; i < 3; ++i) {
+        dir1_normalized[i] = dir1[i] / dir1_norm;
+        dir2_normalized[i] = dir2[i] / dir2_norm;
+    }
+    T res[3];
+    ceres::CrossProduct(dir1_normalized, dir2_normalized, res);
+    T sine = ceres::sqrt(res[0] * res[0] + res[1] * res[1] + res[2] * res[2] + EPS);
+    if (sine > T(1.0))
+        sine = T(1.0);
+    return sine;
+}
+
+template <typename T>
+T CeresComputeDist3D_cosine(const T dir1[3], const T dir2[3]) {
+    T dir1_norm = ceres::sqrt(dir1[0] * dir1[0] + dir1[1] * dir1[1] + dir1[2] * dir1[2] + EPS);
+    T dir2_norm = ceres::sqrt(dir2[0] * dir2[0] + dir2[1] * dir2[1] + dir2[2] * dir2[2] + EPS);
+    T dir1_normalized[3], dir2_normalized[3];
+    for (size_t i = 0; i < 3; ++i) {
+        dir1_normalized[i] = dir1[i] / dir1_norm;
+        dir2_normalized[i] = dir2[i] / dir2_norm;
+    }
+    T cosine = T(0.0);
+    for (size_t i = 0; i < 3; ++i) {
+        cosine += dir1_normalized[i] * dir2_normalized[i];
+    }
+    cosine = ceres::abs(cosine);
+    if (cosine > T(1.0))
+        cosine = T(1.0);
+    return cosine;
+}
+
+struct VpRotationCostFunctor {
+    explicit VpRotationCostFunctor() {}
+
+    template <typename T>
+    bool operator()(const T* qvec, const T* vp1, const T* vp2, T* residuals) const {
+        // rotate vp1 
+        T vp1_rotated[3];
+        ceres::QuaternionRotatePoint(qvec, vp1, vp1_rotated);
+        residuals[0] = CeresComputeDist3D_sine(vp1_rotated, vp2);
+    }
+
+    static ceres::CostFunction* Create() {
+        return new ceres::AutoDiffCostFunction<VpRotationCostFunctor, 1, 4, 3, 3>(new VpRotationCostFunctor());
+    }
+};
+
 } // namespace line_relative_pose 
 
 #endif

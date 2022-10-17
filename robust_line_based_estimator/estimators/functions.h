@@ -19,7 +19,9 @@ std::pair<std::tuple<M3D, V3D, M3D>, ransac_lib::HybridRansacStatistics> run_hyb
         const std::pair<std::vector<Junction2d>, std::vector<Junction2d>>& junction_matches, 
         const std::pair<std::vector<int>, std::vector<int>> vp_labels,
         const ransac_lib::HybridLORansacOptions& options,
-        const std::vector<bool>& solver_flags);
+        const std::vector<bool>& solver_flags,
+        const int ls_refinement,
+        const std::vector<double>& weights_refinement);
 
 } // namespace line_relative_pose 
 
