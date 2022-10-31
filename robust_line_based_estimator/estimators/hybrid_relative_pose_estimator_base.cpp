@@ -125,6 +125,10 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnJunction(const ResultType
     const V2D &p1 = m_norm_junctions_[i].first.point();
     const V2D &p2 = m_norm_junctions_[i].second.point();
 
+    if (m_norm_junctions_[i].first.IsJunction() || 
+        m_norm_junctions_[i].second.IsJunction())
+        return std::numeric_limits<double>::max();
+        
     // fundamental matrix
     const M3D &R = std::get<0>(model); 
     const V3D &T = std::get<1>(model); 
@@ -156,12 +160,11 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnJunction(const ResultType
     double r = (x1 * rxc + y1 * ryc + rwc);
     double rx = e11 * x1 + e12 * y1 + e13;
     double ry = e21 * x1 + e22 * y1 + e23;
-
     return sqrt(r * r /
         (rxc * rxc + ryc * ryc + rx * rx + ry * ry));
 }
 
-double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& model, int t, int i) const {
+double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& model, int t, int i, double &weight) const {
     // Now that all lines are considered to be outliers
     if (t == 0) {
         return 0.0;
@@ -170,6 +173,7 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& m
         return EvaluateModelOnVP(model, i);
     }
     else if (t == 2) {
+        weight = 1.0;
         return EvaluateModelOnJunction(model, i);
     }
     else
