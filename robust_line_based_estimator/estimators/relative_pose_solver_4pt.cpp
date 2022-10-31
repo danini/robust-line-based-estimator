@@ -1,0 +1,39 @@
+#include "estimators/relative_pose_solver_4pt.h"
+
+namespace line_relative_pose {
+
+int RelativePoseSolver4pt::HomographySolver(const std::vector<LineMatch>& line_matches,
+                                              const std::vector<VPMatch>& vp_matches,
+                                              const std::vector<JunctionMatch>& junction_matches,
+                                              std::vector<M3D>* Hs) const 
+{
+    THROW_CHECK_EQ(junction_matches.size(), 4);
+
+    Eigen::Matrix<double, Eigen::Dynamic, 9>  A(8, 9);
+    for (size_t i = 0; i < 4; ++i) {
+        // p1(1:2) * (h3' * p2) = p1(3) * [h1';h2'] * p2         
+        // [p1(3)*p2' 0 0 0 -p1(1)*p2';
+        //  0 0 0 p1(3)*p2' -p1(2)*p2'] * [h1;h2;h3] = 0
+
+        V3D p1 = junction_matches[i].first.point().homogeneous().normalized();
+        V3D p2 = junction_matches[i].second.point().homogeneous().normalized();
+        A.row(2*i  ) << p1(2) * p2.transpose(), 0.0, 0.0, 0.0, -p1(0)*p2.transpose();
+        A.row(2*i+1) << 0.0, 0.0, 0.0, p1(2) * p2.transpose(), -p1(1)*p2.transpose();
+    }
+
+    Eigen::JacobiSVD<decltype(A)> svd(A, Eigen::ComputeFullV);
+
+    Eigen::Matrix<double,9,1> h = svd.matrixV().rightCols<1>();
+
+    Eigen::Matrix3d H;
+    H.row(0) = h.block<3,1>(0,0).transpose();
+    H.row(1) = h.block<3,1>(3,0).transpose();
+    H.row(2) = h.block<3,1>(6,0).transpose();
+
+    Hs->resize(1);
+    (*Hs)[0] = H.inverse();
+    return 1;
+}
+
+}  // namespace line_relative_pose 
+

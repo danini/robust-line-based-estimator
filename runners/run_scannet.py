@@ -35,22 +35,23 @@ DATA_WEIGHTS = [0.0, 0.0, 1.0]
 LS_REFINEMENT = 1 # 0 for sampson, 1 for sampson + vp + line, 2 for sampson + vp (fixed)
 WEIGHTS_REFINEMENT = [1000.0, 100.0] # 0 for vp rotation error, 1 for line-vp error
 # 0 - 5pt
-# 1 - 4line
+# 1 - 4line homography
 # 2 - 1vp + 3pt
 # 3 - 2vp + 2pt
 # 4 - 1vp + 3cll
-# 5 - 2vp + 3cll
-# 6 - 1line + 1vp + 2pt + orthogonal
-# 7 - 1vp + 2pt + orthogonal
-# 8 - 1vp + 3line + orthogonal
-SOLVER_FLAGS = [True, True, True, True, True, True, True, True, True]
+# 5 - 1line + 1vp + 2pt + orthogonal
+# 6 - 1vp + 2pt + orthogonal
+# 7 - 4pt homography
+# 8 - 2vp + 3cll
+# 9 - 1vp + 3line + orthogonal
+SOLVER_FLAGS = [True, True, True, True, True, True, True, True, True, True]
 RUN_LINE_BASED = []
 USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
 USE_JOINT_VP_MATCHING = True
 REFINE_VP = True
 OUTPUT_DB_PATH = "scannet_matches.h5"
-CORE_NUMBER = 16
+CORE_NUMBER = 1
 BATCH_SIZE = 100
 LINE_INLIER_RATIO = 0.3
 
