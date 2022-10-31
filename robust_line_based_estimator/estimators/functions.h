@@ -21,7 +21,8 @@ std::pair<std::tuple<M3D, V3D, M3D>, ransac_lib::HybridRansacStatistics> run_hyb
         const ransac_lib::HybridLORansacOptions& options,
         const std::vector<bool>& solver_flags,
         const int ls_refinement,
-        const std::vector<double>& weights_refinement);
+        const std::vector<double>& weights_refinement,
+        const double line_inlier_ratio);
 
 } // namespace line_relative_pose 
 

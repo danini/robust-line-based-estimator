@@ -14,7 +14,8 @@ std::pair<std::tuple<M3D, V3D, M3D>, ransac_lib::HybridRansacStatistics> run_hyb
         const ransac_lib::HybridLORansacOptions& options,
         const std::vector<bool>& solver_flags,
         const int ls_refinement,
-        const std::vector<double>& weights_refinement) 
+        const std::vector<double>& weights_refinement,
+        const double line_inlier_ratio) 
 {
     ransac_lib::HybridLORansacOptions options_ = options;
     std::random_device rand_dev;
@@ -30,6 +31,7 @@ std::pair<std::tuple<M3D, V3D, M3D>, ransac_lib::HybridRansacStatistics> run_hyb
             solver_probabilities[i] = 0;
     }
     solver.set_prior_probabilities(solver_probabilities);
+    solver.set_line_inlier_ratio(line_inlier_ratio);
 
     // hybrid ransac
     using ResultType = std::tuple<M3D, V3D, M3D>;

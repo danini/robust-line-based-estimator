@@ -46,6 +46,8 @@ public:
     void LeastSquares(const std::vector<std::vector<int>>& sample,
                       ResultType* res) const;
 
+    void set_line_inlier_ratio(const double inlier_ratio) { line_inlier_ratio_ = inlier_ratio; }
+
     virtual inline int num_minimal_solvers() const = 0;
 
     virtual inline void min_sample_sizes(std::vector<std::vector<int>>* min_sample_sizes) const = 0;
@@ -58,6 +60,7 @@ protected:
     // options
     int ls_refinement_ = 0; // 0 for sampson, 1 for sampson + vp + line, 2 for sampson + vp (fixed)
     std::vector<double> weights_refinement_; // 0 for vp rotation error, 1 for line-vp error
+    double line_inlier_ratio_ = 0.3;
 
     // calibration
     M3D K1_inv_, K2_inv_;
