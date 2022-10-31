@@ -11,19 +11,25 @@ def simple_collate_fn(sample):
 
 
 class PhotoTourism(Dataset):
-    def __init__(self, root_dir, split, load_points=False):
-        assert split in ["train", "val"], "Only split accepted are train and val."
+    def __init__(self, root_dir, split, scene=None, load_points=False):
+        assert split in ["train", "val", "test"], "Only split accepted are train and val."
         self.base_dir = os.path.join(root_dir, split)
         seqs = os.listdir(self.base_dir)
         self.load_points = load_points
 
         # Extract each pair
         self.seqs, self.img_pairs = [], []
-        for seq in seqs:
-            with h5py.File(os.path.join(self.base_dir, seq, 'Fgt.h5'), 'r') as f:
+        if scene is None:
+            for seq in seqs:
+                with h5py.File(os.path.join(self.base_dir, seq, 'Fgt.h5'), 'r') as f:
+                    keys = [key for key in f.keys()]
+                    self.img_pairs += keys
+                    self.seqs += [seq] * len(keys)
+        else:
+            with h5py.File(os.path.join(self.base_dir, scene, 'Fgt.h5'), 'r') as f:
                 keys = [key for key in f.keys()]
                 self.img_pairs += keys
-                self.seqs += [seq] * len(keys)
+                self.seqs += [scene] * len(keys)
 
     def get_dataloader(self):
         return DataLoader(
