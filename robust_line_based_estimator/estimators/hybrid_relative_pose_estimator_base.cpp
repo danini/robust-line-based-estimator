@@ -166,7 +166,7 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnJunction(const ResultType
 
 double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& model, int t, int i) const {
     if (t == 0) {
-        if (t < m_lines_.size() * line_inlier_ratio_)
+        if (i < m_lines_.size() * line_inlier_ratio_)
             return 0.0;
         else
             return std::numeric_limits<double>::max();
