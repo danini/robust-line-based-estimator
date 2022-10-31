@@ -175,7 +175,6 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& m
         return EvaluateModelOnVP(model, i);
     }
     else if (t == 2) {
-        weight = 1.0;
         return EvaluateModelOnJunction(model, i);
     }
     else
