@@ -162,9 +162,11 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnJunction(const ResultType
 }
 
 double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& model, int t, int i) const {
-    // Now that all lines are considered to be outliers
     if (t == 0) {
-        return 0.0;
+        if (t < m_lines_.size() * line_inlier_ratio_)
+            return 0.0;
+        else
+            return std::numeric_limits<double>::max();
     }
     else if (t == 1) {
         return EvaluateModelOnVP(model, i);

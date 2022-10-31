@@ -43,15 +43,16 @@ WEIGHTS_REFINEMENT = [1000.0, 100.0] # 0 for vp rotation error, 1 for line-vp er
 # 6 - 1line + 1vp + 2pt + orthogonal
 # 7 - 1vp + 2pt + orthogonal
 # 8 - 1vp + 3line + orthogonal
-SOLVER_FLAGS = [True, False, False, False, False, False, False, False, False]
+SOLVER_FLAGS = [True, True, True, True, True, True, True, True, True]
 RUN_LINE_BASED = []
 USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
 USE_JOINT_VP_MATCHING = True
 REFINE_VP = True
 OUTPUT_DB_PATH = "scannet_matches.h5"
-CORE_NUMBER = 16
+CORE_NUMBER = 1
 BATCH_SIZE = 100
+LINE_INLIER_RATIO = 0.3
 
 ###########################################
 # Initialize the dataset
@@ -263,7 +264,8 @@ def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB
                                                       data_weights=DATA_WEIGHTS,
                                                       solver_flags=SOLVER_FLAGS,
                                                       ls_refinement=LS_REFINEMENT,
-                                                      weights_refinement=WEIGHTS_REFINEMENT)
+                                                      weights_refinement=WEIGHTS_REFINEMENT,
+                                                      line_inlier_ratio=LINE_INLIER_RATIO)
     elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
         print(f"Estimation time = {elapsed_time * 1000:.2f} ms")
