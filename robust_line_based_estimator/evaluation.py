@@ -85,29 +85,31 @@ def quaternion_from_matrix(matrix, isprecise=False):
 
 
 def evaluate_R_t(R_gt, t_gt, R, t, q_gt=None):
-    if t is None or R is None:
-        return np.inf, np.inf 
-    t = t.flatten()
-    t_gt = t_gt.flatten()
+    try:
+        if t is None or R is None:
+            return np.inf, np.inf 
+        t = t.flatten()
+        t_gt = t_gt.flatten()
 
-    eps = 1e-15
+        eps = 1e-15
 
-    if q_gt is None:
-        q_gt = quaternion_from_matrix(R_gt)
-    q = quaternion_from_matrix(R)
-    q = q / (np.linalg.norm(q) + eps)
-    q_gt = q_gt / (np.linalg.norm(q_gt) + eps)
-    loss_q = np.maximum(eps, (1.0 - np.sum(q * q_gt)**2))
-    err_q = np.rad2deg(np.arccos(1 - 2 * loss_q))
+        if q_gt is None:
+            q_gt = quaternion_from_matrix(R_gt)
+        q = quaternion_from_matrix(R)
+        q = q / (np.linalg.norm(q) + eps)
+        q_gt = q_gt / (np.linalg.norm(q_gt) + eps)
+        loss_q = np.maximum(eps, (1.0 - np.sum(q * q_gt)**2))
+        err_q = np.rad2deg(np.arccos(1 - 2 * loss_q))
 
-    t = t / (np.linalg.norm(t) + eps)
-    t_gt = t_gt / (np.linalg.norm(t_gt) + eps)
-    loss_t = np.maximum(eps, (1.0 - np.sum(t * t_gt)**2))
-    err_t = np.rad2deg(np.arccos(np.sqrt(1 - loss_t)))
+        t = t / (np.linalg.norm(t) + eps)
+        t_gt = t_gt / (np.linalg.norm(t_gt) + eps)
+        loss_t = np.maximum(eps, (1.0 - np.sum(t * t_gt)**2))
+        err_t = np.rad2deg(np.arccos(np.sqrt(1 - loss_t)))
 
-    if np.sum(np.isnan(err_q)) or np.sum(np.isnan(err_t)):
-        raise ValueError("NaN error.")
-
+        if np.sum(np.isnan(err_q)) or np.sum(np.isnan(err_t)):
+            raise ValueError("NaN error.")
+    except:
+        return 180, 180        
     return err_q, err_t
 
 
