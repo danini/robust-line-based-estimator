@@ -21,9 +21,19 @@ def run_hybrid_relative_pose(K1, K2, line_matches, vp_matches, junction_matches,
     threshold_normalizer = 0.25 * (K1[0, 0] + K1[1, 1] + K2[0, 0] + K2[1, 1])
     th_pixel = th_pixel / threshold_normalizer
 
+    if any(solver_flags[1:]) == True:
+        data_weights[1] = 1.0 / threshold_normalizer
+    else:
+        th_vp_angle = 0
+        data_weights[1] = 0
+        line_matches = [np.zeros((4, 0)), np.zeros((4, 0))]
+        vp_matches = [np.zeros((3, 0)), np.zeros((3, 0))]
+        vp_labels = [np.zeros((0, 1)), np.zeros((0, 1))]
+
     if any(solver_flags) == True:
         options = _estimators.HybridLORansacOptions()
         options.data_type_weights_ = np.array(data_weights)
+        options.max_num_iterations_ = 1000
         options.squared_inlier_thresholds_ = np.array([0.0, th_vp_angle, th_pixel])
         # options.final_least_squares_ = True
         res = _estimators.run_hybrid_relative_pose(K1, K2, line_matches, vp_matches, junction_matches, vp_labels, options, solver_flags, ls_refinement, weights_refinement)
