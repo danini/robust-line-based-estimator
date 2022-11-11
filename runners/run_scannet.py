@@ -44,14 +44,15 @@ WEIGHTS_REFINEMENT = [1000.0, 100.0] # 0 for vp rotation error, 1 for line-vp er
 # 7 - 4pt homography
 # 8 - 2vp + 3cll
 # 9 - 1vp + 3line + orthogonal
-SOLVER_FLAGS = [True, True, True, True, True, True, True, True, True, True]
+# 10 - 1vp + 2line + 1pt + orthogonal
+SOLVER_FLAGS = [False, False, False, False, False, False, False, False, False, False, True]
 RUN_LINE_BASED = []
 USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
 USE_JOINT_VP_MATCHING = True
 REFINE_VP = True
 OUTPUT_DB_PATH = "scannet_matches.h5"
-CORE_NUMBER = 1
+CORE_NUMBER = 16
 BATCH_SIZE = 100
 LINE_INLIER_RATIO = 0.3
 

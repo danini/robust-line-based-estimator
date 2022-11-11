@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 import cv2
-import pymagsac
+# import pymagsac
 
 def normalize_keypoints(keypoints, K):
     '''Normalize keypoints using the calibration data.'''
@@ -12,7 +12,7 @@ def normalize_keypoints(keypoints, K):
     return (keypoints - np.array([[C_x, C_y]])) / np.array([[f_x, f_y]])
 
 def run_point_based_relative_pose(K1, K2, point_matches, junction_matches, th_pixel=1.0, best_k = np.inf, config=0):
-    
+
     matches = []
     if config == 0 or len(junction_matches) == 0:
         matches = point_matches
@@ -46,6 +46,6 @@ def run_point_based_relative_pose(K1, K2, point_matches, junction_matches, th_pi
         _, R, t, _ = cv2.recoverPose(E, matches[mask, :2], matches[mask, 2:])
     except:
         return None, None
-    
+
     return R, t
 
