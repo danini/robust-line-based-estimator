@@ -7,14 +7,15 @@ seaborn
 brewer2mpl
 scikit-image
 scikit-build
+scikit-learn
 opencv-python
 omegaconf
 scipy
 pyyaml
 tqdm
 attrdict
-torch
-torchvision
+torch==1.12
+torchvision>=0.8
 tensorboardX
 h5py
 tqdm

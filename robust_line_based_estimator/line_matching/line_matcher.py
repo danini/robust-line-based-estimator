@@ -1,7 +1,6 @@
 import numpy as np
 from copy import deepcopy
 from omegaconf import OmegaConf
-from torch.nn.functional import interpolate
 
 from pytlsd import lsd
 from pytlbd import lbd_matching_multiscale
@@ -9,6 +8,7 @@ from pytlbd import lbd_matching_multiscale
 from .lbd import LBDWrapper
 from .sold2 import Sold2Wrapper
 from .superglue_endpoints import SuperGlueEndpoints
+from .gluestick import GlueStick
 
 
 default_conf = {
@@ -130,6 +130,8 @@ class LineMatcher():
             self.lbd = LBDWrapper()
         if line_matcher == 'superglue_endpoints':
             self.sg_endpoints = SuperGlueEndpoints(self.conf)
+        if line_matcher == 'gluestick':
+            self.gluestick = GlueStick(self.conf)
 
     def detect_and_describe_lines(self, image):
         """ Detect line segments and optionally compute descriptors from a
@@ -157,6 +159,11 @@ class LineMatcher():
         # Describe line endpoints with SuperPoint
         if self.matcher == 'superglue_endpoints':
             outputs["descriptor"] = self.sg_endpoints.describe_lines(
+                image, outputs["line_segments"])
+
+        # Describe line endpoints with SuperPoint
+        if self.matcher == 'gluestick':
+            outputs["descriptor"] = self.gluestick.describe_lines(
                 image, outputs["line_segments"])
 
         return outputs
@@ -190,6 +197,10 @@ class LineMatcher():
                 line_features0["descriptor"],
                 line_features1["descriptor"],
                 img0.shape, img1.shape)
+        elif self.matcher == 'gluestick':
+            matches = self.gluestick.match_lines(
+                line_features0["descriptor"],
+                line_features1["descriptor"])
         else:
             raise ValueError("Unknown line matcher: " + self.matcher)
         

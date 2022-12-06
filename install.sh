@@ -31,3 +31,9 @@ wget -O superglue_indoor.pth https://github.com/magicleap/SuperGluePretrainedNet
 wget -O superglue_outdoor.pth https://github.com/magicleap/SuperGluePretrainedNetwork/blob/master/models/weights/superglue_outdoor.pth?raw=true
 mv superglue_indoor.pth robust_line_based_estimator/line_matching/weights/
 mv superglue_outdoor.pth robust_line_based_estimator/line_matching/weights/
+
+# Install the pre-trained model for GlueStick
+echo "Downloading GlueStick model..."
+mkdir -p robust_line_based_estimator/line_matching/weights
+wget -O gluestick.tar https://www.polybox.ethz.ch/index.php/s/SVE9A3rl2wewuV5/download
+mv gluestick.tar robust_line_based_estimator/line_matching/weights/
