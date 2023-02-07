@@ -179,3 +179,24 @@ def sg_matching(img1, img2, superglue_matcher, device):
     mconf = conf[valid]
     return np.concatenate([mkpts0, mkpts1], axis=1), mconf
 
+
+def loftr_matching(img1, img2, loftr_matcher, device):
+    inputs = {
+        'image0': torch.tensor(img1, dtype=torch.float, device=device)[None, None] / 255.,
+        'image1': torch.tensor(img2, dtype=torch.float, device=device)[None, None] / 255.
+    }
+    with torch.no_grad():
+        pred = loftr_matcher(inputs)
+        pred = {k: v.cpu().numpy() for k, v in pred.items()}
+    mkpts0, mkpts1 = pred['keypoints0'], pred['keypoints1']
+    mconf = pred['confidence']
+    return np.concatenate([mkpts0, mkpts1], axis=1), mconf
+
+
+def point_matching(img1, img2, matcher, net, device):
+    if matcher == "SG":
+        return sg_matching(img1, img2, net, device)
+    elif matcher == "LoFTR":
+        return loftr_matching(img1, img2, net, device)
+    else:
+        raise ValueError("Unknown matcher: " + matcher)
