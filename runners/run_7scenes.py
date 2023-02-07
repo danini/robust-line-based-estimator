@@ -26,13 +26,26 @@ import line_relative_pose_estimators as _estimators
 ###########################################
 # Hyperparameters to be tuned
 ###########################################
-TH_PIXEL = 3.0
 ANGLE_THRESHOLD = math.pi / 32
+# scoring
+TH_VP_ANGLE = 5.0
+TH_PIXEL = 3.0
+DATA_WEIGHTS = [0.0, 0.0, 1.0]
+# LO refinement
+LS_REFINEMENT = 1 # 0 for sampson, 1 for sampson + vp + line, 2 for sampson + vp (fixed)
+WEIGHTS_REFINEMENT = [1000.0, 100.0] # 0 for vp rotation error, 1 for line-vp error
 # 0 - 5pt
-# 1 - 4line
+# 1 - 4line homography
 # 2 - 1vp + 3pt
 # 3 - 2vp + 2pt
-SOLVER_FLAGS = [True, False, False, False]
+# 4 - 1vp + 3cll
+# 5 - 1line + 1vp + 2pt + orthogonal
+# 6 - 1vp + 2pt + orthogonal
+# 7 - 4pt homography
+# 8 - 2vp + 3cll
+# 9 - 1vp + 3line + orthogonal
+# 10 - 1vp + 2line + 1pt + orthogonal
+SOLVER_FLAGS = [True, True, True, True, True, True, True, True, True, True, True]
 RUN_LINE_BASED = []
 USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
@@ -41,12 +54,13 @@ REFINE_VP = True
 OUTPUT_DB_PATH = "7scenes_matches.h5"
 CORE_NUMBER = 16
 BATCH_SIZE = 100
+LINE_INLIER_RATIO = 0.3
 
 ###########################################
 # Initialize the dataset
 ###########################################
 dataset = SevenScenes(root_dir=os.path.expanduser("/home/remi/Documents/datasets/7Scenes_orig"),
-                      split='test', scene='stairs')
+                      split='test', scene='all')
 dataloader = dataset.get_dataloader()
 
 ###########################################
@@ -66,7 +80,7 @@ superglue_matcher = Matching(config).eval().to(device)
 # Initialize the line method
 ###########################################
 line_method = 'lsd'  # 'lsd' or 'SOLD2' supported for now
-matcher_type  = "superglue_endpoints"
+matcher_type  = 'superglue_endpoints'  # 'gluestick'
 if matcher_type == 'sold2':
     # SOLD2 matcher
     conf = {
@@ -75,7 +89,8 @@ if matcher_type == 'sold2':
             'device': 'cpu'
         }
     }
-    line_matcher = LineMatcher(line_detector='sold2', line_matcher='sold2', conf=conf)
+    line_matcher = LineMatcher(line_detector='sold2', line_matcher='sold2',
+                               conf=conf)
 elif matcher_type == "lbd":
     # LSD+LBD matcher
     line_matcher = LineMatcher(line_detector='lsd', line_matcher='lbd')
@@ -86,7 +101,13 @@ elif matcher_type == "superglue_endpoints":
             'weights': 'outdoor'
         }
     }
-    line_matcher = LineMatcher(line_detector=line_method, line_matcher='superglue_endpoints', conf=conf)
+    line_matcher = LineMatcher(line_detector=line_method,
+                               line_matcher='superglue_endpoints', conf=conf)
+elif matcher_type == "gluestick":
+    # GlueStick matcher
+    conf = {}
+    line_matcher = LineMatcher(line_detector=line_method,
+                               line_matcher='gluestick', conf=conf)
 
 ###########################################
 # Detecting everything before the pose estimation starts
@@ -94,6 +115,8 @@ elif matcher_type == "superglue_endpoints":
 def detect_and_load_data(data, line_matcher, CORE_NUMBER):
     img1 = data["img1"]
     img2 = data["img2"]
+    gray_img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
+    gray_img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
 
     # Database labels
     label1 = "-".join(data["id1"].split("/")[-3:])
@@ -103,9 +126,6 @@ def detect_and_load_data(data, line_matcher, CORE_NUMBER):
     start_time = time.time()
     point_matches = read_h5(f"sp-sg-{label1}-{label2}", OUTPUT_DB_PATH)
     if point_matches is None:
-        gray_img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
-        gray_img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
-
         # Detect keypoints by SuperPoint + SuperGlue
         point_matches, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
         # Saving to the database
@@ -245,15 +265,20 @@ def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB
                 break
 
     start_time = time.time()
-    pred_R_1_2, pred_T_1_2, _ = run_hybrid_relative_pose(
+    pred_R_1_2, pred_T_1_2, pred_E_1_2 = run_hybrid_relative_pose(
         K1, K2,
         [m_lines1_inl.reshape(m_lines1_inl.shape[0], -1).transpose(),
          m_lines2_inl.reshape(m_lines2_inl.shape[0], -1).transpose()],
         [m_vp1.transpose(), m_vp2.transpose()],
         [junctions_1, junctions_2],
         [m_label1, m_label2],
+        th_vp_angle=TH_VP_ANGLE,
         th_pixel=TH_PIXEL,
-        solver_flags=SOLVER_FLAGS)
+        data_weights=DATA_WEIGHTS,
+        solver_flags=SOLVER_FLAGS,
+        ls_refinement=LS_REFINEMENT,
+        weights_refinement=WEIGHTS_REFINEMENT,
+        line_inlier_ratio=LINE_INLIER_RATIO)
     elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
         print(f"Estimation time = {elapsed_time * 1000:.2f} ms")

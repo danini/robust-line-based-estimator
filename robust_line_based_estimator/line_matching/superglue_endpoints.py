@@ -90,9 +90,9 @@ def sample_descriptors(keypoints, descriptors, s: int = 8):
     keypoints /= torch.tensor([(w*s - s/2 - 0.5), (h*s - s/2 - 0.5)],
                               ).to(keypoints)[None]
     keypoints = keypoints*2 - 1  # normalize to (-1, 1)
-    args = {'align_corners': True} if int(torch.__version__[2]) > 2 else {}
     descriptors = torch.nn.functional.grid_sample(
-        descriptors, keypoints.view(b, 1, -1, 2), mode='bilinear', **args)
+        descriptors, keypoints.view(b, 1, -1, 2), mode='bilinear',
+        align_corners=False)
     descriptors = torch.nn.functional.normalize(
         descriptors.reshape(b, c, -1), p=2, dim=1)
     return descriptors
