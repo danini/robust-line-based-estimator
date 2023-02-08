@@ -11,6 +11,7 @@ from joblib import Parallel, delayed
 
 from robust_line_based_estimator.datasets.scannet import ScanNet
 from robust_line_based_estimator.line_matching.line_matcher import LineMatcher
+from robust_line_based_estimator.line_matching.gluestick import GlueStick
 from robust_line_based_estimator.vp_matcher import vp_matching
 from robust_line_based_estimator.evaluation import evaluate_R_t, pose_auc
 from third_party.SuperGluePretrainedNetwork.models.matching import Matching
@@ -49,7 +50,7 @@ USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
 USE_JOINT_VP_MATCHING = True
 REFINE_VP = True
-MATCHER = "LoFTR"  # "SG" or "LoFTR"
+MATCHER = "GS"  # "SG", "LoFTR", or "GS"
 OUTPUT_DB_PATH = "scannet_matches.h5"
 CORE_NUMBER = 16
 BATCH_SIZE = 100
@@ -63,7 +64,7 @@ dataset = ScanNet(root_dir=os.path.expanduser("~/Documents/datasets/ScanNet"), s
 dataloader = dataset.get_dataloader()
 
 ###########################################
-# Initialize SuperPoint + SuperGlue (only used as a point baseline)
+# Initialize the point matcher
 ###########################################
 device = 'cuda'
 if MATCHER == "SG":
@@ -79,6 +80,9 @@ if MATCHER == "SG":
 elif MATCHER == "LoFTR":
     matcher = LoFTR(pretrained='outdoor').to(device)
     matcher_key = 'loftr'
+elif MATCHER == "GS":
+    matcher = GlueStick({'device': device})
+    matcher_key = 'gs'
 else:
     raise ValueError("Unknown matcher " + MATCHER)
 
@@ -86,7 +90,7 @@ else:
 # Initialize the line method
 ###########################################
 line_method = 'lsd'  # 'lsd' or 'SOLD2' supported for now
-matcher_type  = "superglue_endpoints"
+matcher_type  = 'gluestick'  # 'lbd', 'sold2', 'superglue_endpoints', or 'gluestick'
 if matcher_type == 'sold2':
     # SOLD2 matcher
     conf = {
@@ -107,6 +111,11 @@ elif matcher_type == "superglue_endpoints":
         }
     }
     line_matcher = LineMatcher(line_detector=line_method, line_matcher='superglue_endpoints', conf=conf)
+elif matcher_type == "gluestick":
+    # GlueStick matcher
+    conf = {}
+    line_matcher = LineMatcher(line_detector=line_method,
+                               line_matcher='gluestick', conf=conf)
 
 ###########################################
 # Detecting everything before the pose estimation starts
@@ -119,14 +128,14 @@ def detect_and_load_data(data, line_matcher, CORE_NUMBER):
     label1 = "-".join(data["id1"].split("/")[-3:])
     label2 = "-".join(data["id2"].split("/")[-3:])
 
-    # Try loading the SuperPoint + SuperGlue matches from the database file
+    # Try loading the point matches from the database file
     start_time = time.time()
     point_matches = read_h5(f"{matcher_key}-{label1}-{label2}", OUTPUT_DB_PATH)
     if point_matches is None:
         gray_img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
         gray_img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
 
-        # Detect keypoints by SuperPoint + SuperGlue or LoFTR
+        # Detect keypoints by SuperPoint + SuperGlue, LoFTR, or GlueStick
         point_matches, _ = point_matching(gray_img1, gray_img2, MATCHER,
                                           matcher, device)
         # Saving to the database

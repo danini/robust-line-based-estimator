@@ -11,11 +11,13 @@ from joblib import Parallel, delayed
 
 from robust_line_based_estimator.datasets.eth3d import ETH3D
 from robust_line_based_estimator.line_matching.line_matcher import LineMatcher
+from robust_line_based_estimator.line_matching.gluestick import GlueStick
 from robust_line_based_estimator.vp_matcher import vp_matching
 from robust_line_based_estimator.evaluation import evaluate_R_t, pose_auc
 from third_party.SuperGluePretrainedNetwork.models.matching import Matching
+from kornia.feature import LoFTR
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from functions import verify_pyprogressivex, sg_matching, joint_vp_detection_and_matching
+from functions import verify_pyprogressivex, point_matching, joint_vp_detection_and_matching
 from robust_line_based_estimator.hybrid_relative_pose import run_hybrid_relative_pose
 from robust_line_based_estimator.line_junction_utils import append_h5, read_h5, get_endpoint_correspondences, angular_check
 from robust_line_based_estimator.point_based_relative_pose import run_point_based_relative_pose
@@ -35,20 +37,20 @@ DATA_WEIGHTS = [0.0, 0.0, 1.0]
 LS_REFINEMENT = 1 # 0 for sampson, 1 for sampson + vp + line, 2 for sampson + vp (fixed)
 WEIGHTS_REFINEMENT = [1000.0, 100.0] # 0 for vp rotation error, 1 for line-vp error
 # 0 - 5pt
-# 1 - 4line
-# 2 - 1vp + 3pt
-# 3 - 2vp + 2pt
+# 1 - 4pt homography
+# 2 - 4line homography
+# 3 - 1vp + 3pt
 # 4 - 1vp + 3cll
-# 5 - 2vp + 3cll
+# 5 - 2vp + 2pt
 # 6 - 1line + 1vp + 2pt + orthogonal
-# 7 - 1vp + 2pt + orthogonal
-# 8 - 1vp + 3line + orthogonal
-SOLVER_FLAGS = [True, False, False, False, False, False, False, False, False]
+# 7 - 1vp + 2line + 1pt + orthogonal
+SOLVER_FLAGS = [True, False, False, False, False, False, False, False]
 RUN_LINE_BASED = []
 USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
 USE_JOINT_VP_MATCHING = True
 REFINE_VP = True
+MATCHER = "GS"  # "SG", "LoFTR", or "GS"
 OUTPUT_DB_PATH = "eth3d_matches.h5"
 CORE_NUMBER = 16
 BATCH_SIZE = 100
@@ -62,23 +64,33 @@ dataset = ETH3D(root_dir=os.path.expanduser("/home/remi/Documents/datasets/ETH3D
 dataloader = dataset.get_dataloader()
 
 ###########################################
-# Initialize SuperPoint + SuperGlue (only used as a point baseline)
+# Initialize the point matcher
 ###########################################
-config = {
-    'superpoint': {
-        'nms_radius': 4,
-        'max_keypoints': 1024,
-    },
-    'superglue': {'weights': 'indoor'}
-}
-device = 'cpu'
-superglue_matcher = Matching(config).eval().to(device)
+device = 'cuda'
+if MATCHER == "SG":
+    config = {
+        'superpoint': {
+            'nms_radius': 4,
+            'max_keypoints': 1024,
+        },
+        'superglue': {'weights': 'outdoor'}
+    }
+    matcher = Matching(config).eval().to(device)
+    matcher_key = 'sp-sg'
+elif MATCHER == "LoFTR":
+    matcher = LoFTR(pretrained='outdoor').to(device)
+    matcher_key = 'loftr'
+elif MATCHER == "GS":
+    matcher = GlueStick({'device': device})
+    matcher_key = 'gs'
+else:
+    raise ValueError("Unknown matcher " + MATCHER)
 
 ###########################################
 # Initialize the line method
 ###########################################
 line_method = 'lsd'  # 'lsd' or 'SOLD2' supported for now
-matcher_type  = "superglue_endpoints"
+matcher_type  = 'gluestick'  # 'lbd', 'sold2', 'superglue_endpoints', or 'gluestick'
 if matcher_type == 'sold2':
     # SOLD2 matcher
     conf = {
@@ -99,6 +111,11 @@ elif matcher_type == "superglue_endpoints":
         }
     }
     line_matcher = LineMatcher(line_detector=line_method, line_matcher='superglue_endpoints', conf=conf)
+elif matcher_type == "gluestick":
+    # GlueStick matcher
+    conf = {}
+    line_matcher = LineMatcher(line_detector=line_method,
+                               line_matcher='gluestick', conf=conf)
 
 ###########################################
 # Detecting everything before the pose estimation starts
@@ -111,20 +128,21 @@ def detect_and_load_data(data, line_matcher, CORE_NUMBER):
     label1 = "-".join(data["id1"].split("/")[-3:])
     label2 = "-".join(data["id2"].split("/")[-3:])
 
-    # Try loading the SuperPoint + SuperGlue matches from the database file
+    # Try loading the point matches from the database file
     start_time = time.time()
-    point_matches = read_h5(f"sp-sg-{label1}-{label2}", OUTPUT_DB_PATH)
+    point_matches = read_h5(f"{matcher_key}-{label1}-{label2}", OUTPUT_DB_PATH)
     if point_matches is None:
         gray_img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
         gray_img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
 
-        # Detect keypoints by SuperPoint + SuperGlue
-        point_matches, _ = sg_matching(gray_img1, gray_img2, superglue_matcher, device)
+        # Detect keypoints by SuperPoint + SuperGlue, LoFTR, or GlueStick
+        point_matches, _ = point_matching(gray_img1, gray_img2, MATCHER,
+                                          matcher, device)
         # Saving to the database
-        append_h5({f"sp-sg-{label1}-{label2}": point_matches}, OUTPUT_DB_PATH)
+        append_h5({f"{matcher_key}-{label1}-{label2}": point_matches}, OUTPUT_DB_PATH)
     elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
-        print(f"SP+SG time = {elapsed_time * 1000:.2f} ms")
+        print(f"{matcher_key} time = {elapsed_time * 1000:.2f} ms")
 
     # Detect, describe and match lines
     label = f"{line_method}-{matcher_type}-{label1}-{label2}"

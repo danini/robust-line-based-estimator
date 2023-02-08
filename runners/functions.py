@@ -3,6 +3,8 @@ import cv2
 import torch
 import pyprogressivex
 
+from pytlsd import lsd
+
 
 def verify_pyprogressivex(img_width, img_height, lines_segments, threshold = 2.0):
     lines = []
@@ -162,6 +164,7 @@ def find_relative_pose_from_points(kp_matches, K1, K2, kp_scores=None):
             ret = (R, t[:, 0], pts1[mask], pts2[mask])
     return ret
 
+
 def sg_matching(img1, img2, superglue_matcher, device):
     with torch.no_grad():
         inputs = {
@@ -193,10 +196,37 @@ def loftr_matching(img1, img2, loftr_matcher, device):
     return np.concatenate([mkpts0, mkpts1], axis=1), mconf
 
 
+def gs_matching(img1, img2, gluestick_matcher):
+    # Detect line segments in both images
+    min_length = 15
+    lines1 = lsd(img1)[:, [1, 0, 3, 2]].reshape(-1, 2, 2)
+    lines1 = lines1[np.linalg.norm(lines1[:, 0] - lines1[:, 1], axis=1)
+                    > min_length]
+    lines2 = lsd(img2)[:, [1, 0, 3, 2]].reshape(-1, 2, 2)
+    lines2 = lines2[np.linalg.norm(lines2[:, 0] - lines2[:, 1], axis=1)
+                    > min_length]
+
+    # Run GlueStick
+    with torch.no_grad():
+        pred = gluestick_matcher.match_points(img1, img2, lines1, lines2)
+        kpts0 = pred['keypoints0'][0].cpu().numpy()
+        kpts1 = pred['keypoints1'][0].cpu().numpy()
+        matches = pred['matches0'][0].cpu().numpy()
+        conf = pred['match_scores0'][0].cpu().numpy()
+    # Keep the matching keypoints.
+    valid = matches > -1
+    mkpts0 = kpts0[valid]
+    mkpts1 = kpts1[matches[valid]]
+    mconf = conf[valid]
+    return np.concatenate([mkpts0, mkpts1], axis=1), mconf
+
+
 def point_matching(img1, img2, matcher, net, device):
     if matcher == "SG":
         return sg_matching(img1, img2, net, device)
     elif matcher == "LoFTR":
         return loftr_matching(img1, img2, net, device)
+    elif matcher == "GS":
+        return gs_matching(img1, img2, net)
     else:
         raise ValueError("Unknown matcher: " + matcher)

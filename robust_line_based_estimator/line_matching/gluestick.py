@@ -524,7 +524,7 @@ class GlueStick():
 
     def __init__(self, conf):
         self.conf = OmegaConf.create({**self.default_config, **conf})
-        self.device = conf.device
+        self.device = self.conf.device
 
         # SuperPoint backbone
         self.sp = SuperPoint(self.conf.sp_params).to(self.device).eval()
@@ -614,8 +614,40 @@ class GlueStick():
         }
 
         with torch.no_grad():
-            # Run the point matching
+            # Run the line matching
             out = self.gs(inputs)
             matches = out['line_matches0'].cpu().numpy()[0]
 
         return matches
+
+    def match_points(self, img0, img1, lines0, lines1):
+        """ Match keypoints with GlueStick. """
+        # Extract keypoints
+        feat0 = self.describe_lines(img0, lines0)
+        feat1 = self.describe_lines(img1, lines1)
+
+        # Setup the inputs for GlueStick
+        inputs = {
+            'image_shape0': tuple(feat0['image_shape']),
+            'image_shape1': tuple(feat1['image_shape']),
+            'keypoints0': feat0['junctions'],
+            'keypoints1': feat1['junctions'],
+            'keypoint_scores0': feat0['junc_scores'],
+            'keypoint_scores1': feat1['junc_scores'],
+            'descriptors0': feat0['junc_desc'],
+            'descriptors1': feat1['junc_desc'],
+            'lines0': feat0['lines'],
+            'lines1': feat1['lines'],
+            'line_scores0': feat0['line_scores'],
+            'line_scores1': feat1['line_scores'],
+            'lines_junc_idx0': feat0['lines_junc_idx'],
+            'lines_junc_idx1': feat1['lines_junc_idx'],
+        }
+
+        with torch.no_grad():
+            # Run the point matching
+            out = self.gs(inputs)
+        out['keypoints0'] = feat0['junctions']
+        out['keypoints1'] = feat1['junctions']
+
+        return out
