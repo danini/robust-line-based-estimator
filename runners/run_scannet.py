@@ -89,8 +89,8 @@ else:
 ###########################################
 # Initialize the line method
 ###########################################
-line_method = 'lsd'  # 'lsd' or 'SOLD2' supported for now
-matcher_type  = 'gluestick'  # 'lbd', 'sold2', 'superglue_endpoints', or 'gluestick'
+line_method = 'deeplsd'  # 'lsd', 'SOLD2', or 'deeplsd' supported for now
+matcher_type  = 'superglue_endpoints'  # 'lbd', 'sold2', 'superglue_endpoints', or 'gluestick'
 if matcher_type == 'sold2':
     # SOLD2 matcher
     conf = {
