@@ -44,13 +44,13 @@ WEIGHTS_REFINEMENT = [1000.0, 100.0] # 0 for vp rotation error, 1 for line-vp er
 # 5 - 2vp + 2pt
 # 6 - 1line + 1vp + 2pt + orthogonal
 # 7 - 1vp + 2line + 1pt + orthogonal
-SOLVER_FLAGS = [True, False, False, False, False, False, False, False]
+SOLVER_FLAGS = [True, True, True, True, True, True, True, True]
 RUN_LINE_BASED = []
 USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
 USE_JOINT_VP_MATCHING = True
 REFINE_VP = True
-MATCHER = "GS"  # "SG", "LoFTR", or "GS"
+MATCHER = "SG"  # "SG", "LoFTR", or "GS"
 OUTPUT_DB_PATH = "eth3d_matches.h5"
 CORE_NUMBER = 16
 BATCH_SIZE = 100
@@ -89,8 +89,8 @@ else:
 ###########################################
 # Initialize the line method
 ###########################################
-line_method = 'lsd'  # 'lsd' or 'SOLD2' supported for now
-matcher_type  = 'gluestick'  # 'lbd', 'sold2', 'superglue_endpoints', or 'gluestick'
+line_method = 'deeplsd'  # 'lsd', 'SOLD2', or 'deeplsd' supported for now
+matcher_type  = 'superglue_endpoints'  # 'lbd', 'sold2', 'superglue_endpoints', or 'gluestick'
 if matcher_type == 'sold2':
     # SOLD2 matcher
     conf = {
@@ -123,6 +123,8 @@ elif matcher_type == "gluestick":
 def detect_and_load_data(data, line_matcher, CORE_NUMBER):
     img1 = data["img1"]
     img2 = data["img2"]
+    gray_img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
+    gray_img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
 
     # Database labels
     label1 = "-".join(data["id1"].split("/")[-3:])
@@ -132,9 +134,6 @@ def detect_and_load_data(data, line_matcher, CORE_NUMBER):
     start_time = time.time()
     point_matches = read_h5(f"{matcher_key}-{label1}-{label2}", OUTPUT_DB_PATH)
     if point_matches is None:
-        gray_img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
-        gray_img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
-
         # Detect keypoints by SuperPoint + SuperGlue, LoFTR, or GlueStick
         point_matches, _ = point_matching(gray_img1, gray_img2, MATCHER,
                                           matcher, device)
@@ -327,4 +326,3 @@ print(f"AUC at 5 / 10 / 20 deg error: {auc[0]:.2f} / {auc[1]:.2f} / {auc[2]:.2f}
 auc = 100 * np.r_[pose_auc(pose_errors.max(1), thresholds=[5, 10, 20])]
 print(f"Median pose error: {np.median(pose_errors.max(1)):.2f}")
 print(f"AUC at 5 / 10 / 20 deg error: {auc[0]:.2f} / {auc[1]:.2f} / {auc[2]:.2f}")
-

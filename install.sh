@@ -37,3 +37,9 @@ echo "Downloading GlueStick model..."
 mkdir -p robust_line_based_estimator/line_matching/weights
 wget -O gluestick.tar https://www.polybox.ethz.ch/index.php/s/SVE9A3rl2wewuV5/download
 mv gluestick.tar robust_line_based_estimator/line_matching/weights/
+
+# Install the pre-trained model for DeepLSD
+echo "Downloading DeepLSD model..."
+mkdir -p robust_line_based_estimator/line_matching/weights
+wget -O deeplsd_md.tar https://www.polybox.ethz.ch/index.php/s/XVb30sUyuJttFys/download
+mv deeplsd_md.tar robust_line_based_estimator/line_matching/weights/

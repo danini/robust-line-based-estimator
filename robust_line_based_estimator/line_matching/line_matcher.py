@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from copy import deepcopy
 from omegaconf import OmegaConf
 
@@ -7,6 +8,7 @@ from pytlbd import lbd_matching_multiscale
 
 from .lbd import LBDWrapper
 from .sold2 import Sold2Wrapper
+from .deeplsd import DeepLSD_detector
 from .superglue_endpoints import SuperGlueEndpoints
 from .gluestick import GlueStick
 
@@ -96,6 +98,21 @@ default_conf = {
             'grid_size': 4
         }
     },
+    'deeplsd': {
+        'detect_lines': True,
+        'line_detection_params': {
+            'merge': False,
+            'grad_nfa': True,
+            'optimize': False,
+            'use_vps': False,
+            'optimize_vps': False,
+            'filtering': 'normal',
+            'grad_thresh': 3,
+            'lambda_df': 1.,
+            'lambda_grad': 1.,
+            'lambda_vp': 0.5,
+        },
+    },
     'sp_params': {
         'descriptor_dim': 256,
         'nms_radius': 4,
@@ -126,6 +143,9 @@ class LineMatcher():
                                     OmegaConf.create(conf))
         if line_detector == 'sold2' or line_matcher == 'sold2':
             self.sold2 = Sold2Wrapper(self.conf.sold2)
+        if line_detector == 'deeplsd':
+            self.deeplsd = DeepLSD_detector(self.conf.deeplsd,
+                                            self.conf.device)
         if line_matcher == 'lbd':
             self.lbd = LBDWrapper()
         if line_matcher == 'superglue_endpoints':
@@ -143,6 +163,8 @@ class LineMatcher():
                 image)[:, [1, 0, 3, 2]].reshape(-1, 2, 2)
         elif self.detector == 'sold2':
             outputs = self.sold2.detect_lines(image)
+        elif self.detector == 'deeplsd':
+            outputs["line_segments"] = self.deeplsd.detect_lines(image)
         else:
             raise ValueError("Unknown line detector: " + self.detector)
 
@@ -185,7 +207,7 @@ class LineMatcher():
                 desc1=line_features1["descriptor"][None],
                 scale_factor0=line_features0["scale_factor"],
                 scale_factor1=line_features1["scale_factor"])
-        elif self.matcher == 'sold2' and self.detector == 'lsd':
+        elif self.matcher == 'sold2':
             matches = self.sold2.match_lines(
                 line_features0["line_segments"],
                 line_features1["line_segments"],
@@ -203,7 +225,7 @@ class LineMatcher():
                 line_features1["descriptor"])
         else:
             raise ValueError("Unknown line matcher: " + self.matcher)
-        
+
         # Retrieve the matched lines
         m_lines0 = line_features0["line_segments"][matches != -1]
         m_lines1 = line_features1["line_segments"][matches[matches != -1]]

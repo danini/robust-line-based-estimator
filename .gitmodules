@@ -25,3 +25,6 @@
 [submodule "third_party/pybind11"]
 	path = third_party/pybind11
 	url = git@github.com:pybind/pybind11.git
+[submodule "third_party/DeepLSD"]
+	path = third_party/DeepLSD
+	url = git@github.com:cvg/DeepLSD.git
