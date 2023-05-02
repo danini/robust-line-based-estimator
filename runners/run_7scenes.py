@@ -12,7 +12,7 @@ from joblib import Parallel, delayed
 from robust_line_based_estimator.datasets.seven_scenes import SevenScenes
 from robust_line_based_estimator.line_matching.line_matcher import LineMatcher
 from robust_line_based_estimator.line_matching.gluestick import GlueStick
-from robust_line_based_estimator.vp_matcher import vp_matching
+from robust_line_based_estimator.vp_matcher import vp_matching, associate_lines_to_vps
 from robust_line_based_estimator.evaluation import evaluate_R_t, pose_auc
 from third_party.SuperGluePretrainedNetwork.models.matching import Matching
 from kornia.feature import LoFTR
@@ -50,6 +50,7 @@ USE_ENDPOINTS = False
 MAX_JUNCTIONS = 0
 USE_JOINT_VP_MATCHING = True
 REFINE_VP = True
+REFINE_VP_WITH_ALL_LINES = True
 MATCHER = "GS"  # "SG", "LoFTR", or "GS"
 OUTPUT_DB_PATH = "7scenes_matches.h5"
 CORE_NUMBER = 16
@@ -148,10 +149,13 @@ def detect_and_load_data(data, line_matcher, CORE_NUMBER):
     # Detect, describe and match lines
     label = f"{line_method}-{matcher_type}-{label1}-{label2}"
     start_time = time.time()
-    m_lines1 = read_h5(f"{label}-1", OUTPUT_DB_PATH)
-    m_lines2 = read_h5(f"{label}-2", OUTPUT_DB_PATH)
+    lines_1 = read_h5(f"{label}-1", OUTPUT_DB_PATH)
+    lines_2 = read_h5(f"{label}-2", OUTPUT_DB_PATH)
+    m_lines1 = read_h5(f"{label}-m1", OUTPUT_DB_PATH)
+    m_lines2 = read_h5(f"{label}-m2", OUTPUT_DB_PATH)
 
-    if m_lines1 is None or m_lines2 is None:
+    if (lines_1 is None or lines_2 is None
+        or m_lines1 is None or m_lines2 is None):
         # Detect lines in the images
         line_feat1 = line_matcher.detect_and_describe_lines(gray_img1)
         line_feat2 = line_matcher.detect_and_describe_lines(gray_img2)
@@ -161,25 +165,30 @@ def detect_and_load_data(data, line_matcher, CORE_NUMBER):
 
         # Match lines in the images
         start_time = time.time()
-        _, m_lines1, m_lines2 = line_matcher.match_lines(gray_img1, gray_img2, line_feat1, line_feat2)
+        _, m_lines1, m_lines2 = line_matcher.match_lines(
+            gray_img1, gray_img2, line_feat1, line_feat2)
         elapsed_time = time.time() - start_time
         if CORE_NUMBER < 2:
             print(f"Line matching detection time = {elapsed_time * 1000:.2f} ms")
 
         # Saving to the database
-        append_h5({f"{label}-1": m_lines1,
-            f"{label}-2": m_lines2}, OUTPUT_DB_PATH)
+        lines_1 = line_feat1["line_segments"]
+        lines_2 = line_feat2["line_segments"]
+        append_h5({f"{label}-1": lines_1, f"{label}-2": lines_2,
+                   f"{label}-m1": m_lines1, f"{label}-m2": m_lines2},
+                  OUTPUT_DB_PATH)
     else:
         elapsed_time = time.time() - start_time
         if CORE_NUMBER < 2:
             print(f"Line detection/matching detection time = {elapsed_time * 1000:.2f} ms")
-    #
-    return point_matches, m_lines1, m_lines2
+
+    return point_matches, lines_1, lines_2, m_lines1, m_lines2
 
 ###########################################
 # Relative pose estimation
 ###########################################
-def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB_PATH):
+def process_pair(data, point_matches, lines_1, lines_2,
+                 m_lines1, m_lines2, CORE_NUMBER):
     gt_R_1_2 = data["R_1_2"]
     gt_T_1_2 = data["T_1_2"]
     K1 = data["K1"]
@@ -221,11 +230,25 @@ def process_pair(data, point_matches, m_lines1, m_lines2, CORE_NUMBER, OUTPUT_DB
                                                        vp2, vp_label2)
 
     if REFINE_VP:
-        m_vp1 = _estimators.refine_vp(
-            m_label1, m_lines1_inl.reshape(-1, 4, 1), m_vp1)
+        if len(m_vp1) > 0:
+            if REFINE_VP_WITH_ALL_LINES:
+                # Compute the VP labels with all lines
+                label_1 = associate_lines_to_vps(lines_1, m_vp1)
+                # Refine the VPs
+                m_vp1 = _estimators.refine_vp(
+                    label_1, lines_1[:, :, [1, 0]].reshape(-1, 4, 1), m_vp1)
+            else:
+                m_vp1 = _estimators.refine_vp(
+                    m_label1, m_lines1_inl.reshape(-1, 4, 1), m_vp1)
         m_vp1 = np.array(m_vp1)
-        m_vp2 = _estimators.refine_vp(
-            m_label2, m_lines2_inl.reshape(-1, 4, 1), m_vp2)
+        if len(m_vp2) > 0:
+            if REFINE_VP_WITH_ALL_LINES:
+                label_2 = associate_lines_to_vps(lines_2, m_vp2)
+                m_vp2 = _estimators.refine_vp(
+                    label_2, lines_2[:, :, [1, 0]].reshape(-1, 4, 1), m_vp2)
+            else:
+                m_vp2 = _estimators.refine_vp(
+                    m_label2, m_lines2_inl.reshape(-1, 4, 1), m_vp2)
         m_vp2 = np.array(m_vp2)
     elapsed_time = time.time() - start_time
     if CORE_NUMBER < 2:
@@ -299,20 +322,22 @@ processing_queue = []
 pose_errors = []
 runtimes = []
 run_count = 1
-print(f"Collecting data for [{run_count * BATCH_SIZE} / {len(dataloader)}] pairs")
 for i, data in enumerate(dataloader):
-    point_matches, m_lines1, m_lines2 = detect_and_load_data(data, line_matcher, CORE_NUMBER)
-    processing_queue.append((data, point_matches, m_lines1, m_lines2))
+    point_matches, lines_1, lines_2, m_lines1, m_lines2 = detect_and_load_data(
+        data, line_matcher, CORE_NUMBER)
+    processing_queue.append((data, point_matches, lines_1, lines_2,
+                             m_lines1, m_lines2))
     # Running the estimators so we don't have too much things in the memory
     if len(processing_queue) >= BATCH_SIZE or i == len(dataloader) - 1:
         print(f"Pose estimation...")
         results = Parallel(n_jobs=min(CORE_NUMBER, len(processing_queue)))(delayed(process_pair)(
             data,
             point_matches,
+            lines_1,
+            lines_2,
             m_lines1,
             m_lines2,
-            CORE_NUMBER,
-            OUTPUT_DB_PATH) for data, point_matches, m_lines1, m_lines2 in tqdm(processing_queue))
+            CORE_NUMBER) for data, point_matches, lines_1, lines_2, m_lines1, m_lines2 in tqdm(processing_queue))
 
         # Concatenating the results to the main lists
         pose_errors += [error for error, time in results]

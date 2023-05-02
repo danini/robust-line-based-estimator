@@ -544,12 +544,8 @@ class SuperGlueEndpoints():
             'scores1': torch.tensor(
                 np.repeat(scores1, 2)[None],
                 dtype=torch.float, device=self.device),
-            'descriptors0': torch.tensor(
-                desc0.reshape(1, len(desc0), -1),
-                dtype=torch.float, device=self.device),
-            'descriptors1': torch.tensor(
-                desc1.reshape(1, len(desc1), -1),
-                dtype=torch.float, device=self.device),
+            'descriptors0': desc0.reshape(1, len(desc0), -1).to(self.device),
+            'descriptors1': desc1.reshape(1, len(desc1), -1).to(self.device),
         }
 
         with torch.no_grad():

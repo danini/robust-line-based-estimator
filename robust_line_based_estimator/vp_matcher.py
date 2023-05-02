@@ -35,3 +35,38 @@ def vp_matching(vp0, label0, vp1, label1):
         m_label1[label1 == col_assignment[i]] = i
 
     return m_vp0, m_label0, m_vp1, m_label1
+
+
+def associate_lines_to_vps(lines, vp, thresh=1.5):
+    """ Associate a set of lines to a set of VPs in homogeneous format.
+    Args:
+        lines: [N, 2, 2] array in ij convention.
+        vp: [M, 3] array in homogeneous format.
+    Returns:
+        An [N] array indicating the associated VP (-1 if not associated).
+    """
+    # Center of the lines
+    centers = ((lines[:, 0] + lines[:, 1]) / 2)
+    centers = np.concatenate([centers[:, [1, 0]],
+                              np.ones_like(centers[:, :1])], axis=1)
+
+    # Line passing through the VP and the center of the lines
+    # l = cross(center, vp)
+    # l is [N, M, 3]
+    line_vp = np.cross(centers[:, None], vp[None])
+    line_vp_norm = np.linalg.norm(line_vp[:, :, :2], axis=2)
+
+    # Orthogonal distance of the lines to l
+    endpts = np.concatenate([lines[:, 0][:, [1, 0]],
+                             np.ones_like(lines[:, 0, :1])], axis=1)
+    orth_dist = np.abs(np.sum(endpts[:, None] * line_vp,
+                              axis=2))
+    orth_dist[line_vp_norm < 1e-4] = 0
+    line_vp_norm[line_vp_norm < 1e-4] = 1
+    orth_dist /= line_vp_norm  # [N, M] matrix
+
+    # Find the best assignment
+    closest_vp = np.argmin(orth_dist, axis=1)
+    closest_vp[np.amin(orth_dist, axis=1) > thresh] = -1
+
+    return closest_vp
