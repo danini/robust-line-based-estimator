@@ -9,7 +9,7 @@ import time
 import math
 from joblib import Parallel, delayed
 
-from robust_line_based_estimator.datasets.eth3d import ETH3D
+from robust_line_based_estimator.datasets.lamar import Lamar
 from robust_line_based_estimator.line_matching.line_matcher import LineMatcher
 from robust_line_based_estimator.line_matching.gluestick import GlueStick
 from robust_line_based_estimator.vp_matcher import vp_matching, associate_lines_to_vps
@@ -44,6 +44,7 @@ WEIGHTS_REFINEMENT = [1000.0, 100.0] # 0 for vp rotation error, 1 for line-vp er
 # 5 - 2vp + 2pt
 # 6 - 1line + 1vp + 2pt + orthogonal
 # 7 - 1vp + 2line + 1pt + orthogonal
+# SOLVER_FLAGS = [True, False, False, False, False, False, False, False]
 SOLVER_FLAGS = [True, True, True, True, True, True, True, True]
 RUN_LINE_BASED = []
 USE_ENDPOINTS = False
@@ -51,17 +52,16 @@ MAX_JUNCTIONS = 0
 USE_JOINT_VP_MATCHING = True
 REFINE_VP = True
 REFINE_VP_WITH_ALL_LINES = True
-MATCHER = "SG"  # "SG", "LoFTR", or "GS"
-OUTPUT_DB_PATH = "eth3d_matches.h5"
+MATCHER = "GS"  # "SG", "LoFTR", or "GS"
+OUTPUT_DB_PATH = "lamar_matches.h5"
 CORE_NUMBER = 16
 BATCH_SIZE = 100
+LINE_INLIER_RATIO = 0.3
 
 ###########################################
 # Initialize the dataset
 ###########################################
-dataset = ETH3D(root_dir=os.path.expanduser("/home/remi/Documents/datasets/ETH3D"),
-                split='test', downsize_factor=8)
-# dataset = ScanNet(root_dir=os.path.expanduser("~/Documents/datasets/ScanNet"), split='test')
+dataset = Lamar(root_dir="/home/remi/Documents/datasets/LaMAR/CAB/sessions/query_val_hololens")
 dataloader = dataset.get_dataloader()
 
 ###########################################
@@ -91,7 +91,7 @@ else:
 # Initialize the line method
 ###########################################
 line_method = 'deeplsd'  # 'lsd', 'SOLD2', or 'deeplsd' supported for now
-matcher_type  = 'superglue_endpoints'  # 'lbd', 'sold2', 'superglue_endpoints', or 'gluestick'
+matcher_type  = 'gluestick'  # 'lbd', 'sold2', 'superglue_endpoints', or 'gluestick'
 if matcher_type == 'sold2':
     # SOLD2 matcher
     conf = {
@@ -100,7 +100,8 @@ if matcher_type == 'sold2':
             'device': 'cpu'
         }
     }
-    line_matcher = LineMatcher(line_detector='sold2', line_matcher='sold2', conf=conf)
+    line_matcher = LineMatcher(line_detector='sold2', line_matcher='sold2',
+                               conf=conf)
 elif matcher_type == "lbd":
     # LSD+LBD matcher
     line_matcher = LineMatcher(line_detector='lsd', line_matcher='lbd')
@@ -108,10 +109,11 @@ elif matcher_type == "superglue_endpoints":
     # SuperGlue matcher
     conf = {
         'sg_params': {
-            'weights': 'indoor'
+            'weights': 'outdoor'
         }
     }
-    line_matcher = LineMatcher(line_detector=line_method, line_matcher='superglue_endpoints', conf=conf)
+    line_matcher = LineMatcher(line_detector=line_method,
+                               line_matcher='superglue_endpoints', conf=conf)
 elif matcher_type == "gluestick":
     # GlueStick matcher
     conf = {}
@@ -320,6 +322,7 @@ processing_queue = []
 pose_errors = []
 runtimes = []
 run_count = 1
+print(f"Collecting data for [{run_count * BATCH_SIZE} / {len(dataloader)}] pairs")
 for i, data in enumerate(dataloader):
     point_matches, lines_1, lines_2, m_lines1, m_lines2 = detect_and_load_data(
         data, line_matcher, CORE_NUMBER)
