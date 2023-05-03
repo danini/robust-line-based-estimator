@@ -38,6 +38,7 @@
 #include <limits>
 #include <random>
 #include <vector>
+#include <iostream>
 
 #include <chrono>
 
@@ -136,7 +137,6 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
           SelectMinimalSolver(solver, prior_probabilities, stats,
                               options.min_num_iterations_, &rng);
 
-      
       if (kSolverType < -1) {
         // Since no solver could be selected, we stop Hybrid RANSAC here.
         break;
@@ -260,7 +260,7 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
                           const HybridRansacStatistics& stats,
                           const uint32_t min_num_iterations,
                           std::mt19937* rng) const {
-    double sum_probabilities = 0.0;
+    /*double sum_probabilities = 0.0;
     const int kNumSolvers = static_cast<int>(prior_probabilities.size());
     std::vector<std::vector<int>> min_sample_sizes;
     solver.min_sample_sizes(&min_sample_sizes);
@@ -301,10 +301,22 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
                              prior_probabilities[i];
         }
         sum_probabilities += probabilities[i];
-      }
-    }
+      } 
+    }*/
 
-    std::uniform_real_distribution<double> dist(0.0, sum_probabilities);
+    std::vector<size_t> solverIndices;
+    solverIndices.reserve(prior_probabilities.size());
+    for (size_t solverIdx = 0; solverIdx < prior_probabilities.size(); ++solverIdx)
+      if (prior_probabilities[solverIdx] > 0)
+        solverIndices.emplace_back(solverIdx);
+
+    std::uniform_int_distribution<int> dist(0, solverIndices.size() - 1);
+    const int solverIdx = dist(*rng);
+
+    // int solverIdx = round(((double)rand() / RAND_MAX) * (solverIndices.size() - 1));
+    return solverIndices[solverIdx];
+    
+    /*std::uniform_real_distribution<double> dist(0.0, sum_probabilities);
 
     const double kProb = dist(*rng);
     double current_prob = 0.0;
@@ -314,7 +326,7 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
       current_prob += probabilities[i];
       if (kProb <= current_prob) return i;
     }
-    return -1;
+    return -1;*/
   }
 
   void GetBestEstimatedModelId(
@@ -345,12 +357,13 @@ class HybridLineRelativePoseRansac : public HybridRansacBase {
                   double* score) const {
     *score = 0.0;
 
+    double weight = 1;
     for (int t = 0; t < num_data_types; ++t) {
       if (options.data_type_weights_[t] < std::numeric_limits<double>::epsilon())
         continue;
       for (int i = 0; i < num_data[t]; ++i) {
-        double squared_error = solver.EvaluateModelOnPoint(model, t, i);
-        *score += ComputeScore(squared_error, squared_inlier_thresholds[t]) *
+        double squared_error = solver.EvaluateModelOnPoint(model, t, i, &weight);
+        *score += weight * ComputeScore(squared_error, squared_inlier_thresholds[t]) *
                   options.data_type_weights_[t];
       }
     }

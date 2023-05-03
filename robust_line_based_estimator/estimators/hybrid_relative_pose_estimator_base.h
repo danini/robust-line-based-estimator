@@ -40,7 +40,7 @@ public:
     void solver_probabilities(std::vector<double>* solver_probabilities) const;
 
     // Evaluates the line on the i-th data point of the t-th data type.
-    double EvaluateModelOnPoint(const ResultType& model, int t, int i) const;
+    double EvaluateModelOnPoint(const ResultType& model, int t, int i, double *weight = nullptr) const;
   
     // Linear least squares solver. Calls NonMinimalSolver.
     void LeastSquares(const std::vector<std::vector<int>>& sample,

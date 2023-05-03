@@ -164,7 +164,10 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnJunction(const ResultType
         (rxc * rxc + ryc * ryc + rx * rx + ry * ry));
 }
 
-double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& model, int t, int i) const {
+double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& model, int t, int i, double *weight) const {
+    if (weight != nullptr)
+        *weight = 1.0;
+
     if (t == 0) {
         if (i < m_lines_.size() * line_inlier_ratio_)
             return 0.0;
@@ -175,6 +178,10 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& m
         return EvaluateModelOnVP(model, i);
     }
     else if (t == 2) {
+        if (weight != nullptr && 
+            (m_norm_junctions_[i].first.IsJunction() || 
+             m_norm_junctions_[i].second.IsJunction()))
+            *weight = 2.0;
         return EvaluateModelOnJunction(model, i);
     }
     else
