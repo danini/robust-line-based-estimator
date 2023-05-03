@@ -6,7 +6,7 @@ import pyprogressivex
 from pytlsd import lsd
 
 
-def verify_pyprogressivex(img_width, img_height, lines_segments, threshold = 2.0):
+def verify_pyprogressivex(img_width, img_height, lines_segments, threshold = 2.0, maximum_tanimoto_similarity = 0.8):
     lines = []
     weights = []
     for i in range(lines_segments.shape[0]):
@@ -27,9 +27,9 @@ def verify_pyprogressivex(img_width, img_height, lines_segments, threshold = 2.0
         conf = 0.99,
         spatial_coherence_weight = 0.0,
         neighborhood_ball_radius = 1.0,
-        maximum_tanimoto_similarity = 1.0,
+        maximum_tanimoto_similarity = maximum_tanimoto_similarity,
         max_iters = 1000,
-        minimum_point_number = 5,
+        minimum_point_number = 20,
         maximum_model_number = -1,
         sampler_id = 0,
         scoring_exponent = 1.0,
@@ -38,7 +38,7 @@ def verify_pyprogressivex(img_width, img_height, lines_segments, threshold = 2.0
 
 
 def joint_vp_detection_and_matching(img_width, img_height, m_lines0,
-                                    m_lines1, threshold = 2.0):
+                                    m_lines1, threshold = 2.0, maximum_tanimoto_similarity = 0.8):
     """ m_lines0 and m_lines1 are two sets of matching [N, 2, 2] lines in x-y coordinate convention.
         Returns a set of matching VPs (of size [N, 3] each) and their line labels.
     """
@@ -60,9 +60,9 @@ def joint_vp_detection_and_matching(img_width, img_height, m_lines0,
         conf = 0.99,
         spatial_coherence_weight = 0.0,
         neighborhood_ball_radius = 1.0,
-        maximum_tanimoto_similarity = 1.0,
+        maximum_tanimoto_similarity = maximum_tanimoto_similarity,
         max_iters = 1000,
-        minimum_point_number = 5,
+        minimum_point_number = 20,
         maximum_model_number = -1,
         sampler_id = 0,
         scoring_exponent = 1.0,
@@ -184,14 +184,22 @@ def sg_matching(img1, img2, superglue_matcher, device):
 
 
 def loftr_matching(img1, img2, loftr_matcher, device):
+
+    img1_raw = cv2.resize(img1, (640, 480))
+    img2_raw = cv2.resize(img2, (640, 480))
+
     inputs = {
-        'image0': torch.tensor(img1, dtype=torch.float, device=device)[None, None] / 255.,
-        'image1': torch.tensor(img2, dtype=torch.float, device=device)[None, None] / 255.
+        'image0': torch.tensor(img1_raw, dtype=torch.float, device=device)[None, None] / 255.,
+        'image1': torch.tensor(img2_raw, dtype=torch.float, device=device)[None, None] / 255.
     }
     with torch.no_grad():
         pred = loftr_matcher(inputs)
         pred = {k: v.cpu().numpy() for k, v in pred.items()}
     mkpts0, mkpts1 = pred['keypoints0'], pred['keypoints1']
+    mkpts0[:, 0] = (img1.shape[1] / 640) * mkpts0[:, 0]
+    mkpts0[:, 1] = (img1.shape[0] / 480) * mkpts0[:, 1]
+    mkpts1[:, 0] = (img2.shape[1] / 640) * mkpts1[:, 0]
+    mkpts1[:, 1] = (img2.shape[0] / 480) * mkpts1[:, 1]
     mconf = pred['confidence']
     return np.concatenate([mkpts0, mkpts1], axis=1), mconf
 

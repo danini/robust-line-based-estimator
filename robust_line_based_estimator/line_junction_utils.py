@@ -611,3 +611,94 @@ def angular_check(m_lines1, m_lines2, K1, K2):
                         
             valid_line_pairs.append((line_idx1, line_idx2, angle_source, angle_destination))
     return valid_line_pairs
+
+def get_actual_junctions(m_lines1, m_lines2, K1, K2, eps = 0.01, filter_threshold = 2):
+    
+    d1x = 2 * K1[0, 2]
+    d1y = 2 * K1[1, 2]
+    d2x = 2 * K2[0, 2]
+    d2y = 2 * K2[1, 2]
+    
+    # The number of line correspondences
+    num_matches = m_lines1.shape[0]
+    keypoints1 = []
+    keypoints2 = []
+    indices = []
+
+    # Iterate through all line correspondences and check if they are on the same plane
+    for line_idx1 in range(0, num_matches):
+        # Line in the source image
+        line11 = get_implicit_line(m_lines1[line_idx1][0][:], m_lines1[line_idx1][1][:])
+        # Line in the destination image
+        line21 = get_implicit_line(m_lines2[line_idx1][0][:], m_lines2[line_idx1][1][:])
+                    
+        for line_idx2 in range(line_idx1 + 1, num_matches):
+            # Line in the source image
+            line12 = get_implicit_line(m_lines1[line_idx2][0][:], m_lines1[line_idx2][1][:])
+            # Line in the destination image
+            line22 = get_implicit_line(m_lines2[line_idx2][0][:], m_lines2[line_idx2][1][:])
+            
+            # Intersection in the source image
+            intersection1 = np.cross(line11, line12)
+            if abs(intersection1[2]) < 1e-9:
+                continue
+            intersection1 /= intersection1[2]
+            
+            if intersection1[0] < 0 or intersection1[0] > d1x or intersection1[1] < 0 or intersection1[1] > d1y:
+                continue
+            
+            # Intersection in the destination image
+            intersection2 = np.cross(line21, line22)
+            if abs(intersection2[2]) < 1e-9:
+                continue
+            intersection2 /= intersection2[2]
+            
+            if intersection2[0] < 0 or intersection2[0] > d2x or intersection2[1] < 0 or intersection2[1] > d2y:
+                continue
+            
+            # Counter of how many times a junction falls between endpoints
+            counter = 0
+            
+            # Parameter of the first line first image given the junction
+            dx = m_lines1[line_idx1][1][0] - m_lines1[line_idx1][0][0]
+            if abs(dx) > 1e-4:
+                t11 = (intersection1[0] - m_lines1[line_idx1][0][0]) / dx
+            else:
+                t11 = (intersection1[1] - m_lines1[line_idx1][0][1]) / (m_lines1[line_idx1][1][1] - m_lines1[line_idx1][0][1])                
+            if t11 >= 0 - eps and t11 <= 1 + eps:
+                counter += 1
+            
+            # Parameter of the first line second image given the junction
+            dx = m_lines1[line_idx2][1][0] - m_lines1[line_idx2][0][0]
+            if abs(dx) > 1e-4:
+                t12 = (intersection1[0] - m_lines1[line_idx2][0][0]) / dx
+            else:
+                t12 = (intersection1[1] - m_lines1[line_idx2][0][1]) / (m_lines1[line_idx2][1][1] - m_lines1[line_idx2][0][1])              
+            if t12 >= 0 - eps and t12 <= 1 + eps:
+                counter += 1
+            
+            # Parameter of the second line first image given the junction
+            dx = m_lines2[line_idx1][1][0] - m_lines2[line_idx1][0][0]
+            if abs(dx) > 1e-4:
+                t21 = (intersection2[0] - m_lines2[line_idx1][0][0]) / dx
+            else:
+                t21 = (intersection2[1] - m_lines2[line_idx1][0][1]) / (m_lines2[line_idx1][1][1] - m_lines2[line_idx1][0][1])             
+            if t21 >= 0 - eps and t21 <= 1 + eps:
+                counter += 1
+            
+            # Parameter of the second line second image given the junction
+            dx = m_lines2[line_idx2][1][0] - m_lines2[line_idx2][0][0]
+            if abs(dx) > 1e-4:
+                t22 = (intersection2[0] - m_lines2[line_idx2][0][0]) / dx
+            else:
+                t22 = (intersection2[1] - m_lines2[line_idx2][0][1]) / (m_lines2[line_idx2][1][1] - m_lines2[line_idx2][0][1])            
+            if t22 >= 0 - eps and t22 <= 1 + eps:
+                counter += 1
+            
+            if counter <= filter_threshold:
+                continue
+            
+            keypoints1.append(intersection1[:2])
+            keypoints2.append(intersection2[:2])
+            indices.append([line_idx1, line_idx2])
+    return np.array(keypoints1), np.array(keypoints2), indices
