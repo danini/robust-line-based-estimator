@@ -59,17 +59,11 @@ class Lamar(Dataset):
                 T_rig_cam[rig_id][l[1][-5:]][:3, :3] = R_cam_rig.T
                 T_rig_cam[rig_id][l[1][-5:]][:3, 3] = -R_cam_rig.T @ t_cam_rig
 
-        (self.img_pairs, self.K1, self.K2, self.R_1_2, self.T_1_2, self.R1, self.R2,
-         self.gravity1, self.gravity2) = [], [], [], [], [], [], [], [], []
+        (self.img_pairs, self.K1, self.K2, self.R_1_2, self.T_1_2,
+         self.R1, self.R2) = [], [], [], [], [], [], []
         sequences = os.listdir(os.path.join(root_dir, 'raw_data'))
         for s in sequences:
             seq_path = os.path.join(root_dir, 'raw_data', s)
-            # Extract the gravity in rig coord system
-            gravity = {}
-            with open(os.path.join(seq_path, 'gravity.txt'), 'r') as f:
-                lines = [s.strip('\n').split(', ') for s in f.readlines()][1:]
-                for l in lines:
-                    gravity[l[0]] = np.array(l[2:5]).astype(np.float32)
 
             # Extract the images
             for cam in ['hetlf', 'hetll', 'hetrf', 'hetrr']:
@@ -79,9 +73,6 @@ class Lamar(Dataset):
                 for i in range(len(images) - 1):
                     rig_id = img2rig_id[images[i]]
                     next_rig_id = img2rig_id[images[i + 1]]
-                    if (rig_id not in gravity) or (next_rig_id not in gravity):
-                        # Some frames are missing in the IMU gravity
-                        continue
                     self.img_pairs.append((
                         os.path.join(img_folder, images[i]),
                         os.path.join(img_folder, images[i + 1])))
@@ -91,10 +82,6 @@ class Lamar(Dataset):
                     self.R2.append(T_w_2[:3, :3])
                     self.R_1_2.append(self.R2[-1] @ self.R1[-1].T)
                     self.T_1_2.append(T_w_2 @ np.linalg.inv(T_w_1))
-                    self.gravity1.append(
-                        T_rig_cam[rig_id][cam][:3, :3] @ gravity[rig_id])
-                    self.gravity2.append(
-                        T_rig_cam[next_rig_id][cam][:3, :3] @ gravity[next_rig_id])
                     self.K1.append(calib[cam])
                     self.K2.append(calib[cam])
 
@@ -121,8 +108,6 @@ class Lamar(Dataset):
             'R_world_to_cam2': self.R2[item],
             'K1': self.K1[item],
             'K2': self.K2[item],
-            'gravity1': self.gravity1[item],
-            'gravity2': self.gravity2[item],
         }
 
         return outputs
