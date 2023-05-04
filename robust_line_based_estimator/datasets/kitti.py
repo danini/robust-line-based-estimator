@@ -40,7 +40,7 @@ class Kitti(Dataset):
                 T_2_w = data.poses[i + 1]
                 self.R1.append(T_1_w[:3, :3].T)
                 self.R2.append(T_2_w[:3, :3].T)
-                T_1_2 = T_2_w.T @ T_1_w
+                T_1_2 = np.linalg.inv(T_2_w) @ T_1_w
                 self.T_1_2.append(T_1_2[:3, 3])
                 self.R_1_2.append(T_1_2[:3, :3])
 
