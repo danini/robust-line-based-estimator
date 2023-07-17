@@ -84,12 +84,30 @@ void LeastSquares_Combined(const std::vector<JunctionMatch>& junction_matches,
         }
     }
 
-    // parameterize
+// parameterize
     if (problem.HasParameterBlock(qvec.data())) {
+#ifdef CERES_PARAMETERIZATION_ENABLED
         ceres::LocalParameterization* quaternion_parameterization = 
             new ceres::QuaternionParameterization;
         problem.SetParameterization(qvec.data(), quaternion_parameterization);
+#else
+        ceres::Manifold* quaternion_manifold = 
+            new ceres::QuaternionManifold;
+        problem.SetManifold(qvec.data(), quaternion_manifold);
+#endif
     }
+    if (problem.HasParameterBlock(tvec.data())) {
+#ifdef CERES_PARAMETERIZATION_ENABLED
+        ceres::LocalParameterization* homo3d_parameterization = 
+            new ceres::HomogeneousVectorParameterization(3);
+        problem.SetParameterization(tvec.data(), homo3d_parameterization);
+#else
+        ceres::Manifold* homo3d_manifold = 
+            new ceres::SphereManifold<3>;
+        problem.SetManifold(tvec.data(), homo3d_manifold);
+#endif
+    }
+
     for (size_t vp_id = 0; vp_id < n_vps; ++vp_id) {
         // parameterize vp1
         double* vp_ptr1 = vp_matches_data[vp_id].first.data();
@@ -97,9 +115,15 @@ void LeastSquares_Combined(const std::vector<JunctionMatch>& junction_matches,
             if (fix_vp)
                 problem.SetParameterBlockConstant(vp_ptr1);
             else {
+#ifdef CERES_PARAMETERIZATION_ENABLED
                 ceres::LocalParameterization* homo3d_parameterization = 
                     new ceres::HomogeneousVectorParameterization(3);
                 problem.SetParameterization(vp_ptr1, homo3d_parameterization);
+#else
+                ceres::Manifold* homo3d_manifold = 
+                    new ceres::SphereManifold<3>;
+                problem.SetManifold(vp_ptr1, homo3d_manifold);
+#endif
             }
         }
         // parameterize vp2
@@ -108,9 +132,15 @@ void LeastSquares_Combined(const std::vector<JunctionMatch>& junction_matches,
             if (fix_vp)
                 problem.SetParameterBlockConstant(vp_ptr2);
             else {
+#ifdef CERES_PARAMETERIZATION_ENABLED
                 ceres::LocalParameterization* homo3d_parameterization = 
                     new ceres::HomogeneousVectorParameterization(3);
                 problem.SetParameterization(vp_ptr2, homo3d_parameterization);
+#else
+                ceres::Manifold* homo3d_manifold = 
+                    new ceres::SphereManifold<3>;
+                problem.SetManifold(vp_ptr2, homo3d_manifold);
+#endif
             }
         }
     }
