@@ -39,17 +39,6 @@ void LeastSquares_Sampson(const std::vector<JunctionMatch>& junction_matches, st
         problem.SetManifold(qvec.data(), quaternion_manifold);
 #endif
     }
-    if (problem.HasParameterBlock(tvec.data())) {
-#ifdef CERES_PARAMETERIZATION_ENABLED
-        ceres::LocalParameterization* homo3d_parameterization = 
-            new ceres::HomogeneousVectorParameterization(3);
-        problem.SetParameterization(tvec.data(), homo3d_parameterization);
-#else
-        ceres::Manifold* homo3d_manifold = 
-            new ceres::SphereManifold<3>;
-        problem.SetManifold(tvec.data(), homo3d_manifold);
-#endif
-    }
 
     // Solve the optimization problem
     ceres::Solve(options, &problem, &summary);
