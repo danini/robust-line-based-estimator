@@ -1,6 +1,7 @@
 #include "estimators/hybrid_relative_pose_estimator_base.h"
 #include "refinement/ls_sampson.h"
 #include "refinement/ls_combined.h"
+#include "refinement/ls_sampson_plus_association.h"
 #include <iostream>
 #include <chrono>
 
@@ -47,6 +48,18 @@ HybridRelativePoseEstimatorBase::HybridRelativePoseEstimatorBase(
         Junction2d p2 = junction_matches.second[i];
         m_junctions_.push_back(std::make_pair(p1, p2));
         m_norm_junctions_.push_back(normalize_junction_match(m_junctions_.back()));
+    }
+
+    // initiate line-junction associations: if they are connected on both images
+    m_line_junction_associations_.clear();
+    for (size_t i = 0; i < num_m_lines; ++i) {
+        for (size_t j = 0; j < num_m_junctions; ++j) {
+            if (m_lines_[i].first.point_distance(m_junctions_[j].first.point()) > point_line_association_2d_threshold_)
+                continue;
+            if (m_lines_[i].second.point_distance(m_junctions_[j].second.point()) > point_line_association_2d_threshold_)
+                continue;
+            m_line_junction_associations_.push_back(std::make_pair(i, j));
+        }
     }
 
     // initiate vp labels
@@ -190,7 +203,9 @@ double HybridRelativePoseEstimatorBase::EvaluateModelOnPoint(const ResultType& m
 
 void HybridRelativePoseEstimatorBase::LeastSquares(const std::vector<std::vector<int>>& sample, ResultType* res) const {
     std::vector<JunctionMatch> junction_matches;
+    std::vector<int> junction_ids(m_norm_junctions_.size(), -1);
     for (size_t i = 0; i < sample[2].size(); ++i) {
+        junction_ids[sample[2][i]] = int(junction_matches.size());
         junction_matches.push_back(m_norm_junctions_[sample[2][i]]);
     } 
     if (ls_refinement_ == 0) {
@@ -228,6 +243,15 @@ void HybridRelativePoseEstimatorBase::LeastSquares(const std::vector<std::vector
             LeastSquares_Combined(junction_matches, vp_matches, sup_lines_img1, sup_lines_img2, res, w_vp, w_line_vp, false);
         else
             LeastSquares_Combined(junction_matches, vp_matches, sup_lines_img1, sup_lines_img2, res, w_vp, w_line_vp, true);
+    }
+    else if (ls_refinement_ == 3) {
+        std::vector<std::pair<int, int>> associations;
+        for (auto it = m_line_junction_associations_.begin(); it != m_line_junction_associations_.end(); ++it) {
+            if (junction_ids[it->second] != -1) {
+                associations.push_back(std::make_pair(it->first, junction_ids[it->second]));
+            }
+        }
+        LeastSquares_Sampson_plus_Association(junction_matches, m_norm_lines_, associations, res);
     }
     else {
         throw std::runtime_error("Error! Not supported");

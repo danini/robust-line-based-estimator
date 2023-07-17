@@ -58,9 +58,10 @@ public:
 
 protected:
     // options
-    int ls_refinement_ = 0; // 0 for sampson, 1 for sampson + vp + line, 2 for sampson + vp (fixed)
+    int ls_refinement_ = 0; // 0 for sampson, 1 for sampson + vp + line, 2 for sampson + vp (fixed), 3 for sampson + association
     std::vector<double> weights_refinement_; // 0 for vp rotation error, 1 for line-vp error
     double line_inlier_ratio_ = 0.3;
+    double point_line_association_2d_threshold_ = 3.0; // in pixels
 
     // calibration
     M3D K1_inv_, K2_inv_;
@@ -72,6 +73,9 @@ protected:
         m_norm_vps_;
     std::vector<JunctionMatch> m_junctions_,
         m_norm_junctions_;
+
+    // line-junction associations
+    std::vector<std::pair<int, int>> m_line_junction_associations_;
 
     // used for advanced sampling
     std::vector<std::vector<int>> vp_to_line_ids_img1_; // line ids for each vp

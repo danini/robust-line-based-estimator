@@ -84,7 +84,7 @@ void LeastSquares_Combined(const std::vector<JunctionMatch>& junction_matches,
         }
     }
 
-// parameterize
+    // parameterize
     if (problem.HasParameterBlock(qvec.data())) {
 #ifdef CERES_PARAMETERIZATION_ENABLED
         ceres::LocalParameterization* quaternion_parameterization = 
@@ -96,6 +96,19 @@ void LeastSquares_Combined(const std::vector<JunctionMatch>& junction_matches,
         problem.SetManifold(qvec.data(), quaternion_manifold);
 #endif
     }
+
+// This parameterization seems unnecessary empirically
+//     if (problem.HasParameterBlock(tvec.data())) {
+// #ifdef CERES_PARAMETERIZATION_ENABLED
+//         ceres::LocalParameterization* homo3d_parameterization = 
+//             new ceres::HomogeneousVectorParameterization(3);
+//         problem.SetParameterization(tvec.data(), homo3d_parameterization);
+// #else
+//         ceres::Manifold* homo3d_manifold = 
+//             new ceres::SphereManifold<3>;
+//         problem.SetManifold(tvec.data(), homo3d_manifold);
+// #endif
+//     }
 
     for (size_t vp_id = 0; vp_id < n_vps; ++vp_id) {
         // parameterize vp1

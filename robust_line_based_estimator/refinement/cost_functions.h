@@ -4,6 +4,9 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
+#include "base/linebase.h"
+#include "base/types.h"
+
 namespace line_relative_pose {
 
 struct SampsonCostFunctor {
@@ -127,6 +130,52 @@ struct VpRotationCostFunctor {
     static ceres::CostFunction* Create() {
         return new ceres::AutoDiffCostFunction<VpRotationCostFunctor, 1, 4, 3, 3>(new VpRotationCostFunctor());
     }
+};
+
+struct AssociationCostFunctor {
+    explicit AssociationCostFunctor(const V2D& p1, const V2D& p2, const limap::Line2d& l1, const limap::Line2d& l2): p1_(p1), p2_(p2), l1_(l1.coords()), l2_(l2.coords()) { p1_homo_ = homogeneous(p1); p2_homo_ = homogeneous(p2); }
+
+    template <typename T>
+    bool operator()(const T* qvec, const T* tvec, T* residuals) const {
+        // compose essential matrix
+        T R_pt[3 * 3];
+        ceres::QuaternionToRotation(qvec, R_pt);
+        Eigen::Map<Eigen::Matrix<T, 3, 3, Eigen::RowMajor>> R(R_pt);
+        Eigen::Matrix<T, 3, 3> tskew;
+        tskew(0, 0) = T(0.0); tskew(0, 1) = -tvec[2]; tskew(0, 2) = tvec[1];
+        tskew(1, 0) = tvec[2]; tskew(1, 1) = T(0.0); tskew(1, 2) = -tvec[0];
+        tskew(2, 0) = -tvec[1]; tskew(2, 1) = tvec[0]; tskew(2, 2) = T(0.0);
+        Eigen::Matrix<T, 3, 3> E = tskew * R;
+
+        Eigen::Matrix<T, 3, 1> p1, p2;
+        p1[0] = T(p1_homo_[0]); p1[1] = T(p1_homo_[1]); p1[2] = T(p1_homo_[2]);
+        p2[0] = T(p2_homo_[0]); p2[1] = T(p2_homo_[1]); p2[2] = T(p2_homo_[2]);
+        Eigen::Matrix<T, 3, 1> l1, l2;
+        l1[0] = T(l1_[0]); l1[1] = T(l1_[1]); l1[2] = T(l1_[2]);
+        l2[0] = T(l2_[0]); l2[1] = T(l2_[1]); l2[2] = T(l2_[2]);
+
+        // residuals on the calibrated image plane
+        Eigen::Matrix<T, 3, 1> epline1, epline2;
+        Eigen::Matrix<T, 3, 1> intersection1, intersection2;
+        epline1 = E.transpose() * p2;
+        intersection1 = l1.cross(epline1);
+        epline2 = E * p1;
+        intersection2 = l2.cross(epline2);
+        residuals[0] = intersection1[0] / (intersection1[2] + EPS) - p1_[0];
+        residuals[1] = intersection1[1] / (intersection1[2] + EPS) - p1_[1];
+        residuals[2] = intersection2[0] / (intersection2[2] + EPS) - p2_[0];
+        residuals[3] = intersection2[1] / (intersection2[2] + EPS) - p2_[1];
+        return true;
+    }
+
+    static ceres::CostFunction* Create(const V2D& p1, const V2D& p2, const limap::Line2d& l1, const limap::Line2d& l2) {
+        return new ceres::AutoDiffCostFunction<AssociationCostFunctor, 4, 4, 3>(new AssociationCostFunctor(p1, p2, l1, l2));
+    }
+
+private:
+    const V2D p1_, p2_;
+    const V3D l1_, l2_;
+    V3D p1_homo_, p2_homo_;
 };
 
 } // namespace line_relative_pose 
