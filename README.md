@@ -1,12 +1,5 @@
 # Code cleaning will come soon. Stay tuned!
 
-# robust-line-based-estimator
-
-## TODOs
-
-* [ ] Local Optimization 
-* [ ] Advanced sampling
-
 ## New Installation needed for the solver part
 
 ```
